@@ -158,7 +158,7 @@ static HRESULT GatherProfileInformation(IConnectionProfile* connectionProfile, C
 		hr = connectionProfile2->get_WlanConnectionProfileDetails(&wlanConnectionDetails);
 		ReturnIfFailed(hr);
 
-		hr = wlanConnectionDetails->GetConnectedSsid(&profileInfo->wlanSSID);
+		hr = wlanConnectionDetails->GetConnectedSsid(profileInfo->wlanSSID.GetAddressOf());
 		ReturnIfFailed(hr);
 	}
 
