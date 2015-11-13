@@ -8,6 +8,7 @@ class XamlApplication :
 	WRL::RuntimeClassFlags<WRL::WinRtClassicComMix>,
 	ABI::Windows::UI::Xaml::IApplication,
 	ABI::Windows::UI::Xaml::IApplicationOverrides,
+	ABI::Windows::UI::Xaml::IWindowActivatedEventHandler,
 	WRL::FtmBase>
 {
 private:
@@ -17,12 +18,18 @@ private:
 	WRL::ComPtr<ABI::Windows::UI::Xaml::IWindow> m_Window;
 	WRL::ComPtr<ABI::Windows::UI::Core::ICoreDispatcher> m_Dispatcher;
 
+	EventRegistrationToken m_WindowActivatedToken;
+
+	void Cleanup();
+
 protected:
 	HRESULT SetBaseInstance(IInspectable* nonDelegatingBase);
 	inline WRL::ComPtr<ABI::Windows::UI::Xaml::IWindow> GetWindow() const { return m_Window; }
 	inline WRL::ComPtr<ABI::Windows::UI::Core::ICoreDispatcher> GetDispatcher() const { return m_Dispatcher; }
 
 public:
+	XamlApplication();
+
 	template <typename App = XamlApplication>
 	static HRESULT Run(ABI::Windows::UI::Xaml::IApplicationStatics* applicationStatics)
 	{
@@ -66,6 +73,11 @@ public:
 	virtual HRESULT STDMETHODCALLTYPE OnFileSavePickerActivated(ABI::Windows::ApplicationModel::Activation::IFileSavePickerActivatedEventArgs* args) override;
 	virtual HRESULT STDMETHODCALLTYPE OnCachedFileUpdaterActivated(ABI::Windows::ApplicationModel::Activation::ICachedFileUpdaterActivatedEventArgs* args) override;
 	virtual HRESULT STDMETHODCALLTYPE OnWindowCreated(ABI::Windows::UI::Xaml::IWindowCreatedEventArgs* args) override;
+
+	// IWindowActivatedEventHandler
+	virtual HRESULT STDMETHODCALLTYPE Invoke(IInspectable* sender, ABI::Windows::UI::Core::IWindowActivatedEventArgs* e) override;
+
+	virtual HRESULT STDMETHODCALLTYPE OnWindowActivated(ABI::Windows::UI::Core::IWindowActivatedEventArgs* e) = 0;
 };
 
 }

@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <windows.networking.connectivity.h>
 #include <windows.ui.h>
+#include <windows.ui.viewmanagement.h>
 #include <windows.ui.xaml.h>
 #include <windows.ui.xaml.controls.h>
 #include <windows.ui.xaml.media.h>

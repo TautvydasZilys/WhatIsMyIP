@@ -8,13 +8,11 @@ using namespace ABI::Windows::Foundation;
 using namespace ABI::Windows::Foundation::Collections;
 using namespace ABI::Windows::UI;
 using namespace ABI::Windows::UI::Core;
+using namespace ABI::Windows::UI::ViewManagement;
 using namespace ABI::Windows::UI::Xaml;
 using namespace ABI::Windows::UI::Xaml::Controls;
 using namespace ABI::Windows::UI::Xaml::Media;
 using namespace UI;
-
-#define MultiplyString1(x) x x x x x x x x x x
-#define MultiplyString2(x) MultiplyString1(x) MultiplyString1(x) MultiplyString1(x) MultiplyString1(x) MultiplyString1(x) MultiplyString1(x) MultiplyString1(x) MultiplyString1(x) MultiplyString1(x) MultiplyString1(x)
 
 static HRESULT ApplyTextColor(ITextBlock* textBlock)
 {
@@ -32,10 +30,56 @@ static HRESULT ApplyTextColor(ITextBlock* textBlock)
 	ReturnIfFailed(hr);
 
 	return S_OK;
-	//return textBlock->put_Foreground(brush.Get());
 }
 
-static HRESULT CreateScrollViewer(IScrollViewer** outScrollViewer)
+HRESULT WhatIsMyIPApp::CreatePage(IUIElement** outPage)
+{
+	WRL::ComPtr<IPage> page;
+	HRESULT hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.Page").Get(), &page);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IUIElement> grid;
+	hr = CreateRootGrid(&grid);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IUserControl> pageControl;
+	hr = page.As(&pageControl);
+	ReturnIfFailed(hr);
+
+	hr = pageControl->put_Content(grid.Get());
+	ReturnIfFailed(hr);
+
+	hr = page.As(&m_RootElement);
+	ReturnIfFailed(hr);
+	
+	return page.Get()->QueryInterface(outPage);
+}
+
+HRESULT WhatIsMyIPApp::CreateRootGrid(IUIElement** outGrid)
+{
+	WRL::ComPtr<IGrid> grid;
+	HRESULT hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.Grid").Get(), &grid);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IPanel> gridPanel;
+	hr = grid.As(&gridPanel);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IUIElement> scrollViewer;
+	hr = CreateScrollViewer(&scrollViewer);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IVector<UIElement*>> gridChildren;
+	hr = gridPanel->get_Children(&gridChildren);
+	ReturnIfFailed(hr);
+
+	hr = gridChildren->Append(scrollViewer.Get());
+	ReturnIfFailed(hr);
+
+	return grid.Get()->QueryInterface(outGrid);
+}
+
+HRESULT WhatIsMyIPApp::CreateScrollViewer(IUIElement** outScrollViewer)
 {
 	WRL::ComPtr<IScrollViewer> scrollViewer;
 	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.ScrollViewer").Get(), &scrollViewer);
@@ -44,11 +88,25 @@ static HRESULT CreateScrollViewer(IScrollViewer** outScrollViewer)
 	hr = scrollViewer->put_HorizontalScrollBarVisibility(ScrollBarVisibility_Auto);
 	ReturnIfFailed(hr);
 
-	*outScrollViewer = scrollViewer.Detach();
-	return S_OK;
+	WRL::ComPtr<IContentControl> scrollViewerContentControl;
+	hr = scrollViewer.As(&scrollViewerContentControl);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IUIElement> textBlockElement;
+	hr = CreateIPInformationTextBlock(&textBlockElement);
+	ReturnIfFailed(hr);
+
+	hr = scrollViewerContentControl->put_Content(textBlockElement.Get());
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IUIElement> scrollViewerElement;
+	hr = scrollViewer.As(&scrollViewerElement);
+	ReturnIfFailed(hr);
+
+	return scrollViewer.Get()->QueryInterface(outScrollViewer);
 }
 
-static HRESULT CreateTextBlock(ITextBlock** outTextBlock)
+HRESULT WhatIsMyIPApp::CreateIPInformationTextBlock(IUIElement** outTextBlock)
 {
 	WRL::ComPtr<ITextBlock> textBlock;
 	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.TextBlock").Get(), &textBlock);
@@ -57,31 +115,43 @@ static HRESULT CreateTextBlock(ITextBlock** outTextBlock)
 	hr = ApplyTextColor(textBlock.Get());
 	ReturnIfFailed(hr);
 
-	*outTextBlock = textBlock.Detach();
-	return S_OK;
+	m_TextBlock = textBlock.Detach();
+	return m_TextBlock.Get()->QueryInterface(outTextBlock);
 }
+
+#if !WINDOWS_8_1
+
+static HRESULT SetViewBoundsMode(ApplicationViewBoundsMode boundsMode)
+{
+	WRL::ComPtr<IApplicationViewStatics2> applicationViewStatics;
+	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.ViewManagement.ApplicationView").Get(), &applicationViewStatics);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IApplicationView> applicationView;
+	hr = applicationViewStatics->GetForCurrentView(&applicationView);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IApplicationView2> applicationView2;
+	hr = applicationView.As(&applicationView2);
+	ReturnIfFailed(hr);
+
+	boolean success;
+	hr = applicationView2->SetDesiredBoundsMode(boundsMode, &success);
+	return hr;
+}
+
+#endif
 
 HRESULT WhatIsMyIPApp::CreateXamlLayout()
 {
-	WRL::ComPtr<IScrollViewer> scrollViewer;
-	auto hr = CreateScrollViewer(&scrollViewer);
-	ReturnIfFailed(hr);
+	HRESULT hr;
 
-	WRL::ComPtr<IContentControl> scrollViewerContentControl;
-	hr = scrollViewer.As(&scrollViewerContentControl);
+#if !WINDOWS_8_1
+	hr = SetViewBoundsMode(ApplicationViewBoundsMode_UseVisible);
 	ReturnIfFailed(hr);
+#endif
 
-	hr = CreateTextBlock(&m_TextBlock);
-	ReturnIfFailed(hr);
-
-	WRL::ComPtr<IUIElement> textBlockElement;
-	hr = m_TextBlock.As(&textBlockElement);
-	ReturnIfFailed(hr);
-
-	hr = scrollViewerContentControl->put_Content(textBlockElement.Get());
-	ReturnIfFailed(hr);
-
-	hr = scrollViewer.As(&m_RootElement);
+	hr = CreatePage(&m_RootElement);
 	ReturnIfFailed(hr);
 
 	return S_OK;
@@ -115,7 +185,7 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 	});
 }
 
-HRESULT WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* args)
+HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* args)
 {
 	auto hr = CreateXamlLayout();
 	ReturnIfFailed(hr);
@@ -123,8 +193,20 @@ HRESULT WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* args)
 	hr = GetWindow()->put_Content(m_RootElement.Get());
 	ReturnIfFailed(hr);
 
-	hr = RefreshIPInformationText();
+	return XamlApplication::OnLaunched(args);
+}
+
+HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnWindowActivated(IWindowActivatedEventArgs* e)
+{
+	CoreWindowActivationState windowActivationState;
+	HRESULT hr = e->get_WindowActivationState(&windowActivationState);
 	ReturnIfFailed(hr);
 
-	return XamlApplication::OnLaunched(args);
+	if (windowActivationState != CoreWindowActivationState_Deactivated)
+	{
+		hr = RefreshIPInformationText();
+		ReturnIfFailed(hr);
+	}
+
+	return S_OK;
 }
