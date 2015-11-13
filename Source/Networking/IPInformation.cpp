@@ -142,7 +142,7 @@ static HRESULT GatherProfileInformation(IConnectionProfile* connectionProfile, C
 		hr = wwanConnectionDetails->get_HomeProviderId(profileInfo->wwanHomeProviderId.GetAddressOf());
 		ReturnIfFailed(hr);
 
-		hr = wwanConnectionDetails->get_AccessPointName(profileInfo->wwanHomeProviderId.GetAddressOf());
+		hr = wwanConnectionDetails->get_AccessPointName(profileInfo->wwanAccessPointName.GetAddressOf());
 		ReturnIfFailed(hr);
 
 		hr = wwanConnectionDetails->GetNetworkRegistrationState(&profileInfo->wwanNetworkRegistrationState);
@@ -279,6 +279,7 @@ static void AppendProfileInformation(const ConnectionProfileInformation& profile
 		break;
 
 	case NetworkAuthenticationType_Unknown:
+	default:
 		builder += L"Unknown";
 		break;
 
@@ -313,10 +314,6 @@ static void AppendProfileInformation(const ConnectionProfileInformation& profile
 	case NetworkAuthenticationType_Ihv:
 		builder += L"Ihv";
 		break;
-
-	default:
-		builder += L"Unknown";
-		break;
 	}
 
 	builder += L"\r\n\t";
@@ -329,6 +326,7 @@ static void AppendProfileInformation(const ConnectionProfileInformation& profile
 		break;
 
 	case NetworkEncryptionType_Unknown:
+	default:
 		builder += L"Unknown";
 		break;
 
@@ -362,10 +360,6 @@ static void AppendProfileInformation(const ConnectionProfileInformation& profile
 
 	case NetworkEncryptionType_Ihv:
 		builder += L"Ihv";
-		break;
-
-	default:
-		builder += L"Unknown";
 		break;
 	}
 
