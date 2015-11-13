@@ -26,6 +26,18 @@ struct ConnectionProfileInformation
 
 	uint32_t interfaceType;
 	NetworkTypes networkType;
+
+	bool hasSignalStrength;
+	uint8_t signalStrength;
+
+	boolean isWWanConnection;
+	WRL::HString wwanHomeProviderId;
+	WRL::HString wwanAccessPointName;
+	WwanNetworkRegistrationState wwanNetworkRegistrationState;
+	WwanDataClass wwanDataClass;
+
+	boolean isWLanConnection;
+	WRL::HString wlanSSID;
 };
 
 static HRESULT GatherProfileInformation(IConnectionProfile* connectionProfile, ConnectionProfileInformation* profileInfo)
@@ -108,6 +120,60 @@ static HRESULT GatherProfileInformation(IConnectionProfile* connectionProfile, C
 
 		hr = networkItem->GetNetworkTypes(&profileInfo->networkType);
 		ReturnIfFailed(hr);
+	}
+
+	// IConnectionProfile2
+	WRL::ComPtr<IConnectionProfile2> connectionProfile2;
+	hr = connectionProfile->QueryInterface(__uuidof(IConnectionProfile2), &connectionProfile2);
+	ReturnIfFailed(hr);
+
+	hr = connectionProfile2->get_IsWwanConnectionProfile(&profileInfo->isWWanConnection);
+	ReturnIfFailed(hr);
+
+	hr = connectionProfile2->get_IsWlanConnectionProfile(&profileInfo->isWLanConnection);
+	ReturnIfFailed(hr);
+
+	if (profileInfo->isWWanConnection)
+	{
+		WRL::ComPtr<IWwanConnectionProfileDetails> wwanConnectionDetails;
+		hr = connectionProfile2->get_WwanConnectionProfileDetails(&wwanConnectionDetails);
+		ReturnIfFailed(hr);
+
+		hr = wwanConnectionDetails->get_HomeProviderId(profileInfo->wwanHomeProviderId.GetAddressOf());
+		ReturnIfFailed(hr);
+
+		hr = wwanConnectionDetails->get_AccessPointName(profileInfo->wwanHomeProviderId.GetAddressOf());
+		ReturnIfFailed(hr);
+
+		hr = wwanConnectionDetails->GetNetworkRegistrationState(&profileInfo->wwanNetworkRegistrationState);
+		ReturnIfFailed(hr);
+
+		hr = wwanConnectionDetails->GetCurrentDataClass(&profileInfo->wwanDataClass);
+		ReturnIfFailed(hr);
+	}
+
+	if (profileInfo->isWLanConnection)
+	{
+		WRL::ComPtr<IWlanConnectionProfileDetails> wlanConnectionDetails;
+		hr = connectionProfile2->get_WlanConnectionProfileDetails(&wlanConnectionDetails);
+		ReturnIfFailed(hr);
+	}
+
+	WRL::ComPtr<IReference<uint8_t>> signalStrength;
+
+	hr = connectionProfile2->GetSignalBars(&signalStrength);
+	ReturnIfFailed(hr);
+
+	if (signalStrength != nullptr)
+	{
+		hr = signalStrength->get_Value(&profileInfo->signalStrength);
+		ReturnIfFailed(hr);
+
+		profileInfo->hasSignalStrength = true;
+	}
+	else
+	{
+		profileInfo->hasSignalStrength = false;
 	}
 
 	return S_OK;
@@ -364,7 +430,140 @@ static void AppendProfileInformation(const ConnectionProfileInformation& profile
 		break;
 	}
 
-	builder += L"\r\n\r\n";
+	if (profileInfo.hasSignalStrength)
+	{
+		builder += L"\r\n\t";
+		builder += L"Signal strength: ";
+		builder += profileInfo.signalStrength;
+	}
+
+	if (profileInfo.isWWanConnection)
+	{
+		builder += L"\r\n\t";
+		builder += L"Home provider: ";
+		builder += profileInfo.wwanHomeProviderId.Get();
+
+		builder += L"\r\n\t";
+		builder += L"Access point: ";
+		builder += profileInfo.wwanAccessPointName.Get();
+
+		builder += L"\r\n\t";
+		builder += L"Network registration state: ";
+		
+		switch (profileInfo.wwanNetworkRegistrationState)
+		{
+		case WwanNetworkRegistrationState_None:
+			builder += L"None";
+			break;
+
+		case WwanNetworkRegistrationState_Deregistered:
+			builder += L"Deregistered";
+			break;
+
+		case WwanNetworkRegistrationState_Searching:
+			builder += L"Searching";
+			break;
+
+		case WwanNetworkRegistrationState_Home:
+			builder += L"Home";
+			break;
+
+		case WwanNetworkRegistrationState_Roaming:
+			builder += L"Roaming";
+			break;
+
+		case WwanNetworkRegistrationState_Partner:
+			builder += L"Partner";
+			break;
+
+		case WwanNetworkRegistrationState_Denied:
+			builder += L"Denied";
+			break;
+
+		default:
+			builder += L"Unknown";
+			break;
+		}
+
+		builder += L"\r\n\t";
+		builder += L"Home provider: ";
+		
+		switch (profileInfo.wwanDataClass)
+		{
+		case WwanDataClass_None:
+			builder += L"None";
+			break;
+
+		case WwanDataClass_Gprs:
+			builder += L"Gprs";
+			break;
+
+		case WwanDataClass_Edge:
+			builder += L"Edge";
+			break;
+
+		case WwanDataClass_Umts:
+			builder += L"Umts";
+			break;
+
+		case WwanDataClass_Hsdpa:
+			builder += L"Hsdpa";
+			break;
+
+		case WwanDataClass_Hsupa:
+			builder += L"Hsupa";
+			break;
+
+		case WwanDataClass_LteAdvanced:
+			builder += L"LteAdvanced";
+			break;
+
+		case WwanDataClass_Cdma1xRtt:
+			builder += L"Cdma1xRtt";
+			break;
+
+		case WwanDataClass_Cdma1xEvdo:
+			builder += L"Cdma1xEvdo";
+			break;
+
+		case WwanDataClass_Cdma1xEvdoRevA:
+			builder += L"Cdma1xEvdoRevA";
+			break;
+
+		case WwanDataClass_Cdma1xEvdv:
+			builder += L"Cdma1xEvdv";
+			break;
+
+		case WwanDataClass_Cdma3xRtt:
+			builder += L"Cdma3xRtt";
+			break;
+
+		case WwanDataClass_Cdma1xEvdoRevB:
+			builder += L"Cdma1xEvdoRevB";
+			break;
+
+		case WwanDataClass_CdmaUmb:
+			builder += L"CdmaUmb";
+			break;
+
+		case WwanDataClass_Custom:
+			builder += L"Custom";
+			break;
+
+		default:
+			builder += L"Unknown";
+			break;
+		}
+	}
+
+	if (profileInfo.isWLanConnection)
+	{
+		builder += L"\r\n\t";
+		builder += L"SSID: ";
+		builder += profileInfo.wlanSSID.Get();
+	}
+
+	builder += L"\r\n\r\n";	
 }
 
 HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<WRL::ComPtr<INetworkAdapter>, WRL::HString>>* networkAdapters)
