@@ -140,6 +140,8 @@ static bool GenerateVcxItemsFile(const std::wstring& projectName, const std::wst
 	WriteFileChecked(R"*(      <AdditionalIncludeDirectories>$(SourceDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>)*" "\r\n");
 	WriteFileChecked(R"*(      <CompileAsWinRT>false</CompileAsWinRT>)*" "\r\n");
 	WriteFileChecked(R"*(      <TreatWarningAsError>true</TreatWarningAsError>)*" "\r\n");
+	WriteFileChecked(R"*(    </ClCompile>)*" "\r\n");
+	WriteFileChecked(R"*(    <ClCompile Condition="'$(Platform)'=='Win32'">)*" "\r\n");
 	WriteFileChecked(R"*(      <CallingConvention>StdCall</CallingConvention>)*" "\r\n");
 	WriteFileChecked(R"*(    </ClCompile>)*" "\r\n");
 	WriteFileChecked(R"*(    <Link>)*" "\r\n");

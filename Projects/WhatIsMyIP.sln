@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Windows81", "Windows81\Windows81.vcxproj", "{044375CE-74D7-4CDA-B48A-C8A493499BCF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WindowsPhone81", "WindowsPhone81\WindowsPhone81.vcxproj", "{A70D3285-D305-4751-8CBC-636793D883F0}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WhatIsMyIP", "WhatIsMyIP.vcxitems", "{73D4A11B-858F-4CAF-941A-0B1AF3AE6389}"
 EndProject
 Global
@@ -35,6 +37,20 @@ Global
 		{044375CE-74D7-4CDA-B48A-C8A493499BCF}.Release|x64.ActiveCfg = Release|x64
 		{044375CE-74D7-4CDA-B48A-C8A493499BCF}.Release|x64.Build.0 = Release|x64
 		{044375CE-74D7-4CDA-B48A-C8A493499BCF}.Release|x64.Deploy.0 = Release|x64
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Debug|ARM.ActiveCfg = Debug|ARM
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Debug|ARM.Build.0 = Debug|ARM
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Debug|ARM.Deploy.0 = Debug|ARM
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Debug|Win32.Build.0 = Debug|Win32
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Debug|Win32.Deploy.0 = Debug|Win32
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Debug|x64.ActiveCfg = Debug|Win32
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Release|ARM.ActiveCfg = Release|ARM
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Release|ARM.Build.0 = Release|ARM
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Release|ARM.Deploy.0 = Release|ARM
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Release|Win32.ActiveCfg = Release|Win32
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Release|Win32.Build.0 = Release|Win32
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Release|Win32.Deploy.0 = Release|Win32
+		{A70D3285-D305-4751-8CBC-636793D883F0}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
