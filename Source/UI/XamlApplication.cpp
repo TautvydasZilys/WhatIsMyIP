@@ -127,5 +127,8 @@ HRESULT XamlApplication::OnWindowCreated(IWindowCreatedEventArgs* args)
 	auto hr = args->get_Window(&m_Window);
 	ReturnIfFailed(hr);
 
+	hr = m_Window->get_Dispatcher(&m_Dispatcher);
+	ReturnIfFailed(hr);
+
 	return m_BaseApplicationOverrides->OnWindowCreated(args);
 }

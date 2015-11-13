@@ -1,10 +1,13 @@
 #include "PrecompiledHeader.h"
 #include "WhatIsMyIPApp.h"
 #include "Networking\IPInformationGenerator.h"
+#include "Utilities\EventHandler.h"
 
 using namespace ABI::Windows::ApplicationModel::Activation;
+using namespace ABI::Windows::Foundation;
 using namespace ABI::Windows::Foundation::Collections;
 using namespace ABI::Windows::UI;
+using namespace ABI::Windows::UI::Core;
 using namespace ABI::Windows::UI::Xaml;
 using namespace ABI::Windows::UI::Xaml::Controls;
 using namespace ABI::Windows::UI::Xaml::Media;
@@ -88,7 +91,27 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 {
 	return Networking::GenerateIPInformationAsync([this](HSTRING contents)
 	{
-		m_TextBlock->put_Text(contents);
+		WRL::ComPtr<IAsyncAction> asyncAction;
+		HSTRING text;
+
+		auto hr = WindowsDuplicateString(contents, &text);
+		ReturnIfFailed(hr);
+
+		hr = GetDispatcher()->RunAsync(CoreDispatcherPriority_Normal, Utilities::EventHandlerFactory<IDispatchedHandler>::Make([this, text]() -> HRESULT
+		{
+			WRL::HString str;
+			str.Attach(text);
+
+			auto hr = m_TextBlock->put_Text(text);
+			ReturnIfFailed(hr);
+
+			return S_OK;
+		}).Get(), &asyncAction);
+
+		if (FAILED(hr))
+			WindowsDeleteString(text);
+
+		return hr;
 	});
 }
 

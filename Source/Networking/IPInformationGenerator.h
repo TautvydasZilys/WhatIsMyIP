@@ -1,6 +1,13 @@
 #pragma once
 #include "IPInformation.h"
 #include "Utilities\CriticalSection.h"
+#include "Utilities\HStringBuilder.h"
+
+
+inline bool operator<(const GUID& left, const GUID& right)
+{
+	return memcmp(&left, &right, sizeof(GUID)) < 0;
+}
 
 namespace Networking
 {
@@ -9,23 +16,89 @@ template <typename CallbackType>
 class IPInformationGenerator :
 	public WRL::RuntimeClass<
 		WRL::RuntimeClassFlags<WRL::ClassicCom>,
-		ABI::Windows::Foundation::IAsyncOperationCompletedHandler<ABI::Windows::Networking::Connectivity::ConnectionProfile*>>
+		ABI::Windows::Foundation::IAsyncOperationCompletedHandler<ABI::Windows::Networking::Connectivity::ConnectionProfile*>,
+		WRL::FtmBase>
 {
 private:
 	CallbackType m_Callback;
 
 	std::vector<WRL::ComPtr<ABI::Windows::Networking::Connectivity::IConnectionProfile>> m_ConnectionProfiles;
+	std::map<GUID, WRL::HString> m_NetworkAdapterAddresses;
 	Utilities::CriticalSection m_ConnectionProfilesCriticalSection;
 
 	uint32_t m_PendingAsyncOperationCount;
 	bool m_Started;
 
-	void CompleteOperation()
+	inline void FillNetworkAdapterAddresses(const std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, WRL::HString>>& adapterInfos)
 	{
-		
+		for (auto& adapterInfo : adapterInfos)
+		{
+			GUID adapterId;
+			auto hr = adapterInfo.first->get_NetworkAdapterId(&adapterId);
+			ContinueIfFailed(hr);
+
+			WRL::HString address;
+			hr = address.Set(adapterInfo.second.Get());
+			ContinueIfFailed(hr);
+
+			m_NetworkAdapterAddresses.emplace(adapterId, std::move(address));
+		}
 	}
 
-	void DecrementPendingOperationCount()
+	inline void FireFindConnectionProfilesTasks(const std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, WRL::HString>>& adapterInfos)
+	{
+		m_PendingAsyncOperationCount = static_cast<uint32_t>(adapterInfos.size());
+
+		for (auto& adapterInfo : adapterInfos)
+		{
+			WRL::ComPtr<ABI::Windows::Foundation::IAsyncOperation<ABI::Windows::Networking::Connectivity::ConnectionProfile*>> getProfileOperation;
+			auto hr = adapterInfo.first->GetConnectedProfileAsync(&getProfileOperation);
+			if (FAILED(hr))
+			{
+				DecrementPendingOperationCount();
+				continue;
+			}
+
+			hr = getProfileOperation->put_Completed(this);
+			if (FAILED(hr))
+			{
+				DecrementPendingOperationCount();
+				continue;
+			}
+		}
+	}
+
+	void CompleteOperation()
+	{
+		Utilities::HStringBuilder builder;
+		HRESULT hr;
+
+		for (const auto& profile : m_ConnectionProfiles)
+		{
+			WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter> adapter;
+			hr = profile->get_NetworkAdapter(&adapter);
+			ContinueIfFailed(hr);
+
+			GUID adapterId;
+			hr = adapter->get_NetworkAdapterId(&adapterId);
+			ContinueIfFailed(hr);
+
+			hr = IPInformation::FillConnectionProfileInformation(m_NetworkAdapterAddresses[adapterId].Get(), profile.Get(), builder);
+			ContinueIfFailed(hr);
+		}
+		
+		WRL::HString str;
+		hr = builder.Promote(str.GetAddressOf());
+		Assert(SUCCEEDED(hr));
+
+		if (SUCCEEDED(hr))
+		{
+			hr = m_Callback(str.Get());
+			Assert(SUCCEEDED(hr));
+		}
+	}
+
+	inline void DecrementPendingOperationCount()
 	{
 		auto newCount =	InterlockedDecrement(&m_PendingAsyncOperationCount);
 
@@ -41,34 +114,19 @@ public:
 	{
 	}
 
-	HRESULT Perform()
+	inline HRESULT Perform()
 	{
 		if (m_Started)
 			return E_NOT_VALID_STATE;
 
 		m_Started = true;
 
-		std::set<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>> networkAdapters;
-		auto hr = IPInformation::GetAllNetworkAdapters(&networkAdapters);
-		m_PendingAsyncOperationCount = static_cast<uint32_t>(networkAdapters.size());
+		std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, WRL::HString>> adapters;
+		auto hr = IPInformation::GetAllNetworkAdapters(&adapters);
+		ReturnIfFailed(hr);
 
-		for (auto& adapter : networkAdapters)
-		{
-			WRL::ComPtr<ABI::Windows::Foundation::IAsyncOperation<ABI::Windows::Networking::Connectivity::ConnectionProfile*>> getProfileOperation;
-			hr = adapter->GetConnectedProfileAsync(&getProfileOperation);
-			if (FAILED(hr))
-			{
-				DecrementPendingOperationCount();
-				continue;
-			}
-
-			hr = getProfileOperation->put_Completed(this);
-			if (FAILED(hr))
-			{
-				DecrementPendingOperationCount();
-				continue;
-			}
-		}
+		FillNetworkAdapterAddresses(adapters);
+		FireFindConnectionProfilesTasks(adapters);
 
 		return S_OK;
 	}
@@ -93,7 +151,7 @@ public:
 };
 
 template <typename CallbackType>
-HRESULT GenerateIPInformationAsync(CallbackType&& callbackType)
+inline HRESULT GenerateIPInformationAsync(CallbackType&& callbackType)
 {
 	auto generator = WRL::Make<IPInformationGenerator<CallbackType>>(std::forward<CallbackType>(callbackType));
 	return generator->Perform();

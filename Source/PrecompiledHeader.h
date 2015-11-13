@@ -13,8 +13,8 @@
 #undef max
 
 #include <cstdint>
+#include <map>
 #include <utility>
-#include <set>
 #include <vector>
 
 namespace WRL

@@ -7,17 +7,20 @@ class XamlApplication :
 	public WRL::RuntimeClass<
 	WRL::RuntimeClassFlags<WRL::WinRtClassicComMix>,
 	ABI::Windows::UI::Xaml::IApplication,
-	ABI::Windows::UI::Xaml::IApplicationOverrides>
+	ABI::Windows::UI::Xaml::IApplicationOverrides,
+	WRL::FtmBase>
 {
 private:
 	WRL::ComPtr<IInspectable> m_NonDelegatingBase;
 	WRL::ComPtr<ABI::Windows::UI::Xaml::IApplication> m_BaseApplication;
 	WRL::ComPtr<ABI::Windows::UI::Xaml::IApplicationOverrides> m_BaseApplicationOverrides;
 	WRL::ComPtr<ABI::Windows::UI::Xaml::IWindow> m_Window;
+	WRL::ComPtr<ABI::Windows::UI::Core::ICoreDispatcher> m_Dispatcher;
 
 protected:
 	HRESULT SetBaseInstance(IInspectable* nonDelegatingBase);
 	inline WRL::ComPtr<ABI::Windows::UI::Xaml::IWindow> GetWindow() const { return m_Window; }
+	inline WRL::ComPtr<ABI::Windows::UI::Core::ICoreDispatcher> GetDispatcher() const { return m_Dispatcher; }
 
 public:
 	template <typename App = XamlApplication>

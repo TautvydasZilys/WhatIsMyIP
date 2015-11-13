@@ -9,7 +9,8 @@ template <typename DelegateInterface, typename CallbackType>
 class EventHandlerBase :
 	public WRL::RuntimeClass<
 		WRL::RuntimeClassFlags<WRL::ClassicCom>,
-		DelegateInterface>
+		DelegateInterface,
+		WRL::FtmBase>
 {
 protected:
 	CallbackType m_Callback;

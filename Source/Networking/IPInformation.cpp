@@ -11,6 +11,7 @@ using namespace ABI::Windows::Networking::Connectivity;
 struct ConnectionProfileInformation
 {
 	WRL::HString name;
+	WRL::HString address;
 	NetworkConnectivityLevel connectivityLevel;
 
 	NetworkCostType networkCostType;
@@ -117,19 +118,30 @@ static void AppendProfileInformation(const ConnectionProfileInformation& profile
 	builder += profileInfo.name.Get();
 	builder += L"\r\n\t";
 	
+	builder += L"Address: ";
+	builder += profileInfo.address.Get();
+	builder += L"\r\n\t";
+
 	switch (profileInfo.connectivityLevel)
 	{
 	case NetworkConnectivityLevel_None:
 		builder += L"Connectivity level: None";
 		break;
+
 	case NetworkConnectivityLevel_LocalAccess:
 		builder += L"Connectivity level: Local access";
 		break;
+
 	case NetworkConnectivityLevel_ConstrainedInternetAccess:
 		builder += L"Connectivity level: Constrained internet access";
 		break;
+
 	case NetworkConnectivityLevel_InternetAccess:
 		builder += L"Connectivity level: Internet access";
+		break;
+
+	default:
+		builder += L"Connectivity level: Unknown";
 		break;
 	}
 
@@ -150,6 +162,7 @@ static void AppendProfileInformation(const ConnectionProfileInformation& profile
 		break;
 
 	case NetworkCostType_Unknown:
+	default:
 		builder += L"Network cost type: Unknown";
 		break;
 	}
@@ -189,23 +202,172 @@ static void AppendProfileInformation(const ConnectionProfileInformation& profile
 	}
 
 	builder += L"Authentication type: ";
-	builder += profileInfo.authenticationType;
-	builder += L"\r\n\t";
 
+	switch (profileInfo.authenticationType)
+	{
+	case NetworkAuthenticationType_None:
+		builder += L"None";
+		break;
+
+	case NetworkAuthenticationType_Unknown:
+		builder += L"Unknown";
+		break;
+
+	case NetworkAuthenticationType_Open80211:
+		builder += L"Open80211";
+		break;
+
+	case NetworkAuthenticationType_SharedKey80211:
+		builder += L"SharedKey80211";
+		break;
+
+	case NetworkAuthenticationType_Wpa:
+		builder += L"Wpa";
+		break;
+
+	case NetworkAuthenticationType_WpaPsk:
+		builder += L"WpaPsk";
+		break;
+
+	case NetworkAuthenticationType_WpaNone:
+		builder += L"WpaNone";
+		break;
+
+	case NetworkAuthenticationType_Rsna:
+		builder += L"Rsna";
+		break;
+
+	case NetworkAuthenticationType_RsnaPsk:
+		builder += L"RsnaPsk";
+		break;
+
+	case NetworkAuthenticationType_Ihv:
+		builder += L"Ihv";
+		break;
+
+	default:
+		builder += L"Unknown";
+		break;
+	}
+
+	builder += L"\r\n\t";
 	builder += L"Encryption type: ";
-	builder += profileInfo.encryptionType;
-	builder += L"\r\n\t";
 
+	switch (profileInfo.encryptionType)
+	{
+	case NetworkEncryptionType_None:
+		builder += L"None";
+		break;
+
+	case NetworkEncryptionType_Unknown:
+		builder += L"Unknown";
+		break;
+
+	case NetworkEncryptionType_Wep:
+		builder += L"Wep";
+		break;
+
+	case NetworkEncryptionType_Wep40:
+		builder += L"Wep40";
+		break;
+
+	case NetworkEncryptionType_Wep104:
+		builder += L"Wep104";
+		break;
+
+	case NetworkEncryptionType_Tkip:
+		builder += L"Tkip";
+		break;
+
+	case NetworkEncryptionType_Ccmp:
+		builder += L"Ccmp";
+		break;
+
+	case NetworkEncryptionType_WpaUseGroup:
+		builder += L"WpaUseGroup";
+		break;
+
+	case NetworkEncryptionType_RsnUseGroup:
+		builder += L"RsnUseGroup";
+		break;
+
+	case NetworkEncryptionType_Ihv:
+		builder += L"Ihv";
+		break;
+
+	default:
+		builder += L"Unknown";
+		break;
+	}
+
+	builder += L"\r\n\t";
 	builder += L"Interface type: ";
-	builder += profileInfo.interfaceType;
-	builder += L"\r\n\t";
 
-	builder += L"Network type: ";
-	builder += profileInfo.networkType;
+	switch (profileInfo.interfaceType)
+	{
+	case 1:
+		builder += L"Other";
+		break;
+
+	case 6:
+		builder += L"Ethernet";
+		break;
+
+	case 9:
+		builder += L"Token ring";
+		break;
+
+	case 23:
+		builder += L"PPP";
+		break;
+
+	case 24:
+		builder += L"Software loopback";
+		break;
+
+	case 37:
+		builder += L"ATM";
+		break;
+
+	case 71:
+		builder += L"IEEE 802.11 wireless";
+		break;
+
+	case 131:
+		builder += L"Tunnel type encapsulation";
+		break;
+
+	case 144:
+		builder += L"IEEE 1394 (Firewire) high performance serial bus";
+		break;
+	}
+
 	builder += L"\r\n\t";
+	builder += L"Network type: ";
+
+	switch (profileInfo.networkType)
+	{
+	case NetworkTypes_None:
+		builder += L"None";
+		break;
+
+	case NetworkTypes_Internet:
+		builder += L"Internet";
+		break;
+	
+	case NetworkTypes_PrivateNetwork:
+		builder += L"Private network";
+		break;
+
+	default:
+		builder += L"Unknown";
+		break;
+	}
+
+	builder += L"\r\n\r\n";
 }
 
-HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::set<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>>* networkAdapters)
+HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<WRL::ComPtr<INetworkAdapter>, WRL::HString>>* networkAdapters)
 {
 	HRESULT hr;
 
@@ -234,21 +396,28 @@ HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::set<WRL::ComPtr<AB
 		if (ipInformation == nullptr)
 			continue;
 
+		WRL::HString name;
+		hr = hostName->get_CanonicalName(name.GetAddressOf());
+		ContinueIfFailed(hr);
+
 		WRL::ComPtr<INetworkAdapter> networkAdapter;
 		hr = ipInformation->get_NetworkAdapter(&networkAdapter);
 		ContinueIfFailed(hr);
 
-		networkAdapters->insert(std::move(networkAdapter));
+		networkAdapters->emplace_back(std::move(networkAdapter), std::move(name));
 	}
 
 	return S_OK;
 }
 
-HRESULT Networking::IPInformation::FillConnectionProfileInformation(IConnectionProfile* connectionProfile, Utilities::HStringBuilder& builder)
+HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, Utilities::HStringBuilder& builder)
 {
 	ConnectionProfileInformation profileInfo;
 	ZeroMemory(&profileInfo, sizeof(profileInfo));
 	auto hr = GatherProfileInformation(connectionProfile, &profileInfo);
+	ReturnIfFailed(hr);
+
+	hr = profileInfo.address.Set(address);
 	ReturnIfFailed(hr);
 
 	AppendProfileInformation(profileInfo, builder);
