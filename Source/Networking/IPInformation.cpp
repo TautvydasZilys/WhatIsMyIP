@@ -157,6 +157,9 @@ static HRESULT GatherProfileInformation(IConnectionProfile* connectionProfile, C
 		WRL::ComPtr<IWlanConnectionProfileDetails> wlanConnectionDetails;
 		hr = connectionProfile2->get_WlanConnectionProfileDetails(&wlanConnectionDetails);
 		ReturnIfFailed(hr);
+
+		hr = wlanConnectionDetails->GetConnectedSsid(&profileInfo->wlanSSID);
+		ReturnIfFailed(hr);
 	}
 
 	WRL::ComPtr<IReference<uint8_t>> signalStrength;
