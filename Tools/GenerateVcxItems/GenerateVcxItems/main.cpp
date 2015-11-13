@@ -112,7 +112,7 @@ static const char* DetermineMSBuildFileType(const std::wstring& filePath)
 	} \
 	while (false)
 
-static bool GenerateVcxItemsFile(const std::wstring& targetPath, const std::vector<std::wstring>& files)
+static bool GenerateVcxItemsFile(const std::wstring& projectName, const std::wstring& targetPath, const std::vector<std::wstring>& files)
 {
 	Utf8FileWriter fileWriter(targetPath.c_str());
 	
@@ -130,7 +130,7 @@ static bool GenerateVcxItemsFile(const std::wstring& targetPath, const std::vect
 	WriteFileChecked(R"*(    <CodeSharingProject>)*", CreateGuidWithoutBraces(), "</CodeSharingProject>\r\n");
 	WriteFileChecked(R"*(    <ItemsProjectGuid>)*", CreateGuid(), "</ItemsProjectGuid>\r\n");
 	WriteFileChecked(R"*(    <HasSharedItems>true</HasSharedItems>)*" "\r\n");
-	WriteFileChecked(R"*(    <ItemsRootNamespace>WhatIsMyIP</ItemsRootNamespace>)*" "\r\n");
+	WriteFileChecked(R"*(    <ItemsRootNamespace>")*", projectName, "</ItemsRootNamespace>\r\n");
 	WriteFileChecked(R"*(	 <SourceDir>$(SolutionDir)..\Source\</SourceDir>)*" "\r\n");
 	WriteFileChecked(R"*(  </PropertyGroup>)*" "\r\n");
 	WriteFileChecked(R"*(  <ItemDefinitionGroup>)*" "\r\n");
@@ -245,7 +245,7 @@ int wmain(int argc, wchar_t* argv[])
 {
 	if (argc != 2)
 	{
-		std::wcout << L"Usage: " << PathHelpers::GetFileName(argv[0]) << L" <vcxitems file name>" << std::endl;
+		std::wcout << L"Usage: " << PathHelpers::GetFileName(argv[0]) << L" <project name>" << std::endl;
 		return -1;
 	}
 
@@ -261,9 +261,9 @@ int wmain(int argc, wchar_t* argv[])
 	auto sourceFiles = EnumerateFiles(sourceDirectory, { L".cpp", L".h" });
 	std::transform(sourceFiles.begin(), sourceFiles.end(), sourceFiles.begin(), [&sourceDirectory](const std::wstring& path) { return path.substr(sourceDirectory.length() + 1); });	
 
-	auto vcxItemsPath = PathHelpers::CombinePaths(projectRoot, L"Projects", argv[1]);
-
-	if (!GenerateVcxItemsFile(vcxItemsPath, sourceFiles))
+	std::wstring projectName = argv[1];
+	auto vcxItemsPath = PathHelpers::CombinePaths(projectRoot, L"Projects", projectName + L".vcxitems");
+	if (!GenerateVcxItemsFile(projectName, vcxItemsPath, sourceFiles))
 		return -1;
 
 	if (!GenerateVcxItemsFiltersFile(vcxItemsPath + L".filters", sourceFiles))
