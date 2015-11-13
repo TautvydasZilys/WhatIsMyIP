@@ -60,6 +60,11 @@
     <IntDir>$(ProjectRoot)build\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>WhatIsMyIP</TargetName>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>WINDOWS_8_1=1;_UNICODE;UNICODE;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>

@@ -51,6 +51,11 @@
     <IntDir>$(ProjectRoot)build\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>WhatIsMyIP</TargetName>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>WINDOWS_PHONE_8_1=1;PSAPI_VERSION=2;WINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>

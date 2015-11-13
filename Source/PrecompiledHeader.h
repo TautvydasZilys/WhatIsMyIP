@@ -32,3 +32,11 @@ namespace WRL
 #define DoIfFailed(hr, action) do { Assert(SUCCEEDED(hr)); if (FAILED(hr)) { action; } } while (false)
 #define ContinueIfFailed(hr) DoIfFailed(hr, continue)
 #define ReturnIfFailed(hr) DoIfFailed(hr, return hr)
+
+#ifndef WINDOWS_8_1
+#define WINDOWS_8_1 0
+#endif
+
+#ifndef WINDOWS_PHONE_8_1
+#define WINDOWS_PHONE_8_1 0
+#endif
