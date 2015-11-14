@@ -11,6 +11,51 @@ private:
 	uint32_t m_BufferSize;
 	uint32_t m_Length;
 
+	template <typename T>
+	struct AppendHelper
+	{
+		template <typename = typename std::enable_if<std::is_integral<T>::value>::type>
+		inline static HStringBuilder& Append(HStringBuilder* builder, T number)
+		{
+			wchar_t buffer[20];
+			auto length = swprintf_s(buffer, L"%u", number);
+			builder->Append(buffer, static_cast<uint32_t>(length));
+			return *builder;
+		}
+	};
+
+	template<>
+	struct AppendHelper<HSTRING>
+	{
+		inline static HStringBuilder& Append(HStringBuilder* builder, HSTRING str)
+		{
+			uint32_t length;
+			const wchar_t* characters = WindowsGetStringRawBuffer(str, &length);
+			builder->Append(characters, length);
+			return *builder;
+		}
+	};
+
+	template <uint32_t length>
+	struct AppendHelper<const wchar_t[length]>
+	{
+		inline static HStringBuilder& Append(HStringBuilder* builder, const wchar_t(&str)[length])
+		{
+			builder->Append(str, length - 1);
+			return *builder;
+		}
+	};
+
+	template <>
+	struct AppendHelper<const wchar_t*>
+	{
+		inline static HStringBuilder& Append(HStringBuilder* builder, const wchar_t* str)
+		{
+			builder->Append(str, wcslen(str));
+			return *builder;
+		}
+	};
+
 public:
 	inline HStringBuilder() :
 		m_Buffer(nullptr),
@@ -58,27 +103,10 @@ public:
 		m_Length += length;
 	}
 
-	inline HStringBuilder& operator+=(HSTRING str)
+	template <typename T>
+	inline HStringBuilder& operator+=(const T& str)
 	{
-		uint32_t length;
-		const wchar_t* characters = WindowsGetStringRawBuffer(str, &length);
-		Append(characters, length);
-		return *this;
-	}
-
-	template <uint32_t length>
-	inline HStringBuilder& operator+=(const wchar_t(&str)[length])
-	{
-		Append(str, length - 1);
-		return *this;
-	}
-
-	inline HStringBuilder& operator+=(uint32_t number)
-	{
-		wchar_t buffer[10];
-		auto length = swprintf_s(buffer, L"%u", number);
-		Append(buffer, static_cast<uint32_t>(length));
-		return *this;
+		return AppendHelper<T>::Append(this, str);
 	}
 
 	HRESULT Promote(HSTRING* str)
