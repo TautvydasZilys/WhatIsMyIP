@@ -14,7 +14,10 @@
 #undef max
 
 #include <cstdint>
+#include <iomanip>
 #include <map>
+#include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 

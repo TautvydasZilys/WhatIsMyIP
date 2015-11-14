@@ -1,8 +1,8 @@
 #pragma once
+
+#include "ConnectionProperties.h"
 #include "IPInformation.h"
 #include "Utilities\CriticalSection.h"
-#include "Utilities\HStringBuilder.h"
-
 
 inline bool operator<(const GUID& left, const GUID& right)
 {
@@ -70,8 +70,9 @@ private:
 
 	void CompleteOperation()
 	{
-		Utilities::HStringBuilder builder;
 		HRESULT hr;
+		std::vector<ConnectionProperties> connectionProperties;
+		connectionProperties.reserve(m_ConnectionProfiles.size());
 
 		for (const auto& profile : m_ConnectionProfiles)
 		{
@@ -83,19 +84,15 @@ private:
 			hr = adapter->get_NetworkAdapterId(&adapterId);
 			ContinueIfFailed(hr);
 
-			hr = IPInformation::FillConnectionProfileInformation(m_NetworkAdapterAddresses[adapterId].Get(), profile.Get(), builder);
+			ConnectionProperties properties;
+			hr = IPInformation::FillConnectionProfileInformation(m_NetworkAdapterAddresses[adapterId].Get(), profile.Get(), properties);
 			ContinueIfFailed(hr);
-		}
-		
-		WRL::HString str;
-		hr = builder.Promote(str.GetAddressOf());
-		Assert(SUCCEEDED(hr));
 
-		if (SUCCEEDED(hr))
-		{
-			hr = m_Callback(str.Get());
-			Assert(SUCCEEDED(hr));
+			connectionProperties.push_back(std::move(properties));
 		}
+
+		hr = m_Callback(connectionProperties);
+		Assert(SUCCEEDED(hr));
 	}
 
 	inline void DecrementPendingOperationCount()

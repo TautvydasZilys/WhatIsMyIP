@@ -1,13 +1,16 @@
 #include "PrecompiledHeader.h"
+#include "ConnectionProperties.h"
 #include "IPInformation.h"
 #include "NetworkEnumNames.h"
 #include "Utilities\EventHandler.h"
-#include "Utilities\HStringBuilder.h"
 
 using namespace ABI::Windows::Foundation;
 using namespace ABI::Windows::Foundation::Collections;
 using namespace ABI::Windows::Networking;
 using namespace ABI::Windows::Networking::Connectivity;
+
+using namespace Networking;
+using namespace Networking::IPInformation;
 
 struct ConnectionProfileInformation
 {
@@ -41,9 +44,12 @@ struct ConnectionProfileInformation
 	WRL::HString wlanSSID;
 };
 
-static HRESULT GatherProfileInformation(IConnectionProfile* connectionProfile, ConnectionProfileInformation* profileInfo)
+static HRESULT GatherProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, ConnectionProfileInformation* profileInfo)
 {
-	auto hr = connectionProfile->get_ProfileName(profileInfo->name.GetAddressOf());
+	auto hr = profileInfo->address.Set(address);
+	ReturnIfFailed(hr);
+
+	hr = connectionProfile->get_ProfileName(profileInfo->name.GetAddressOf());
 	ReturnIfFailed(hr);
 
 	hr = connectionProfile->GetNetworkConnectivityLevel(&profileInfo->connectivityLevel);
@@ -183,104 +189,46 @@ static HRESULT GatherProfileInformation(IConnectionProfile* connectionProfile, C
 	return S_OK;
 }
 
-static void AppendProfileInformation(const ConnectionProfileInformation& profileInfo, Utilities::HStringBuilder& builder)
+static void ConvertConnectionProfileInformationToConnectionProperties(const ConnectionProfileInformation& profileInfo, ConnectionProperties& connectionProperties)
 {
-	builder += profileInfo.name.Get();
+	uint32_t length;
+	auto& properties = connectionProperties.properties;
 
-	builder += L"\r\n\t";	
-	builder += L"Address: ";
-	builder += profileInfo.address.Get();
+	connectionProperties.name = profileInfo.name.GetRawBuffer(&length);
 
-	builder += L"\r\n\t";
-	builder += L"Connectivity level: ";
-	builder += Networking::NetworkEnumNames::GetConnectivityLevelName(profileInfo.connectivityLevel);
-
-	builder += L"\r\n\t";
-	builder += L"Network cost type: ";
-	builder += Networking::NetworkEnumNames::GetNetworkCostTypeName(profileInfo.networkCostType);
-
-	builder += L"\r\n\t";
-
-	if (profileInfo.isRoaming)
-	{
-		builder += L"Is roaming: Yes";
-	}
-	else
-	{
-		builder += L"Is roaming: No";
-	}
+	properties[L"Address"] = profileInfo.address.GetRawBuffer(&length);
+	properties[L"Connectivity level"] = Networking::NetworkEnumNames::GetConnectivityLevelName(profileInfo.connectivityLevel);
+	properties[L"Network cost type"] = Networking::NetworkEnumNames::GetNetworkCostTypeName(profileInfo.networkCostType);
+	properties[L"Is roaming"] = profileInfo.isRoaming ? L"Yes" : L"No";
 
 	if (profileInfo.networkCostType == NetworkCostType_Fixed || profileInfo.networkCostType == NetworkCostType_Variable)
 	{
-		builder += L"\r\n\t";
-		builder += L"Data used: ";
-		builder += profileInfo.megabytesUsed;
-		builder += L" MB";
-		
-		builder += L"\r\n\t";
-		builder += L"Data limit: ";
-
-		if (profileInfo.hasLimit)
-		{
-			builder += profileInfo.megabytesLimit;
-			builder += L" MB";
-		}
-		else
-		{
-			builder += L"Unlimited";
-		}
+		properties[L"Data used"] = std::to_wstring(profileInfo.megabytesUsed) + L" MB";
+		properties[L"Data limit"] = profileInfo.hasLimit ? std::to_wstring(profileInfo.megabytesLimit) + L" MB" : L"Unlimited";
 	}
 
-	builder += L"\r\n\t";
-	builder += L"Authentication type: ";
-	builder += Networking::NetworkEnumNames::GetNetworkAuthenticationTypeName(profileInfo.authenticationType);
-
-	builder += L"\r\n\t";
-	builder += L"Encryption type: ";
-	builder += Networking::NetworkEnumNames::GetNetworkEncryptionTypeName(profileInfo.encryptionType);
-
-	builder += L"\r\n\t";
-	builder += L"Interface type: ";
-	builder += Networking::NetworkEnumNames::GetIANAInterfaceTypeName(profileInfo.interfaceType);
-
-	builder += L"\r\n\t";
-	builder += L"Network type: ";
-	builder += Networking::NetworkEnumNames::GetNetworkTypeName(profileInfo.networkType);
-
+	properties[L"Authentication type"] = Networking::NetworkEnumNames::GetNetworkAuthenticationTypeName(profileInfo.authenticationType);
+	properties[L"Encryption type"] = Networking::NetworkEnumNames::GetNetworkEncryptionTypeName(profileInfo.encryptionType);
+	properties[L"Interface type"] = Networking::NetworkEnumNames::GetIANAInterfaceTypeName(profileInfo.interfaceType);
+	properties[L"Network type"] = Networking::NetworkEnumNames::GetNetworkTypeName(profileInfo.networkType);
+	
 	if (profileInfo.hasSignalStrength)
 	{
-		builder += L"\r\n\t";
-		builder += L"Signal strength: ";
-		builder += profileInfo.signalStrength;
+		properties[L"Signal strength"] = profileInfo.signalStrength;
 	}
 
 	if (profileInfo.isWWanConnection)
 	{
-		builder += L"\r\n\t";
-		builder += L"Home provider: ";
-		builder += profileInfo.wwanHomeProviderId.Get();
-
-		builder += L"\r\n\t";
-		builder += L"Access point: ";
-		builder += profileInfo.wwanAccessPointName.Get();
-
-		builder += L"\r\n\t";
-		builder += L"Network registration state: ";
-		builder += Networking::NetworkEnumNames::GetWWanRegistrationStateName(profileInfo.wwanNetworkRegistrationState);
-
-		builder += L"\r\n\t";
-		builder += L"Data class: ";
-		builder += Networking::NetworkEnumNames::GetWWanDataClassName(profileInfo.wwanDataClass);		
+		properties[L"Home provider"] = profileInfo.wwanHomeProviderId.GetRawBuffer(&length);
+		properties[L"Access point"] = profileInfo.wwanAccessPointName.GetRawBuffer(&length);
+		properties[L"Registration state"] = Networking::NetworkEnumNames::GetWWanRegistrationStateName(profileInfo.wwanNetworkRegistrationState);
+		properties[L"Data class"] = Networking::NetworkEnumNames::GetWWanDataClassName(profileInfo.wwanDataClass);
 	}
 
 	if (profileInfo.isWLanConnection)
 	{
-		builder += L"\r\n\t";
-		builder += L"SSID: ";
-		builder += profileInfo.wlanSSID.Get();
+		properties[L"SSID"] = profileInfo.wlanSSID.GetRawBuffer(&length);
 	}
-
-	builder += L"\r\n\r\n";	
 }
 
 HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<WRL::ComPtr<INetworkAdapter>, WRL::HString>>* networkAdapters)
@@ -326,16 +274,13 @@ HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<W
 	return S_OK;
 }
 
-HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, Utilities::HStringBuilder& builder)
+HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, ConnectionProperties& connectionProperties)
 {
 	ConnectionProfileInformation profileInfo;
 	ZeroMemory(&profileInfo, sizeof(profileInfo));
-	auto hr = GatherProfileInformation(connectionProfile, &profileInfo);
+	auto hr = GatherProfileInformation(address, connectionProfile, &profileInfo);
 	ReturnIfFailed(hr);
 
-	hr = profileInfo.address.Set(address);
-	ReturnIfFailed(hr);
-
-	AppendProfileInformation(profileInfo, builder);
+	ConvertConnectionProfileInformationToConnectionProperties(profileInfo, connectionProperties);
 	return S_OK;
 }

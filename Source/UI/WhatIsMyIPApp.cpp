@@ -1,7 +1,8 @@
 #include "PrecompiledHeader.h"
-#include "WhatIsMyIPApp.h"
+#include "Networking\ConnectionProperties.h"
 #include "Networking\IPInformationGenerator.h"
 #include "Utilities\EventHandler.h"
+#include "WhatIsMyIPApp.h"
 
 using namespace ABI::Windows::ApplicationModel::Activation;
 using namespace ABI::Windows::Foundation;
@@ -159,14 +160,30 @@ HRESULT WhatIsMyIPApp::CreateXamlLayout()
 
 HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 {
-	return Networking::GenerateIPInformationAsync([this](HSTRING contents)
+	return Networking::GenerateIPInformationAsync([this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
 	{
-		WRL::ComPtr<IAsyncAction> asyncAction;
+		std::wstringstream textStream;
 		HSTRING text;
 
-		auto hr = WindowsDuplicateString(contents, &text);
+		for (auto& properties : connectionProperties)
+		{
+			textStream << properties.name << std::endl;
+
+			for (auto& property : properties.properties)
+			{
+				textStream << L"    ";
+				textStream << std::setw(36) << std::left << property.first;
+				textStream << property.second << std::endl;
+			}
+
+			textStream << std::endl;
+		}
+
+		auto str = textStream.str();
+		auto hr = WindowsCreateString(str.c_str(), static_cast<uint32_t>(str.length()), &text);
 		ReturnIfFailed(hr);
 
+		WRL::ComPtr<IAsyncAction> asyncAction;
 		hr = GetDispatcher()->RunAsync(CoreDispatcherPriority_Normal, Utilities::EventHandlerFactory<IDispatchedHandler>::Make([this, text]() -> HRESULT
 		{
 			WRL::HString str;
