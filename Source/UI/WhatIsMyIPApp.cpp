@@ -214,7 +214,8 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 
 	m_ActiveRefreshTaskCount++;
 
-	return Networking::GenerateIPInformationAsync([this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
+	WRL::ComPtr<WhatIsMyIPApp> _this = this;
+	return Networking::GenerateIPInformationAsync([_this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
 	{
 		std::wstringstream textStream;
 		HSTRING text;
@@ -238,17 +239,17 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 		ReturnIfFailed(hr);
 
 		WRL::ComPtr<IAsyncAction> asyncAction;
-		hr = GetDispatcher()->RunAsync(CoreDispatcherPriority_Normal, Utilities::EventHandlerFactory<IDispatchedHandler>::Make([this, text]() -> HRESULT
+		hr = _this->GetDispatcher()->RunAsync(CoreDispatcherPriority_Normal, Utilities::EventHandlerFactory<IDispatchedHandler>::Make([_this, text]() -> HRESULT
 		{
 			WRL::HString str;
 			str.Attach(text);
 
-			auto hr = m_TextBlock->put_Text(text);
+			auto hr = _this->m_TextBlock->put_Text(text);
 			ReturnIfFailed(hr);
 
-			m_ActiveRefreshTaskCount--;
-			if (m_ActiveRefreshTaskCount == 0)
-				return m_ProgressBar->put_Visibility(Visibility_Collapsed);
+			_this->m_ActiveRefreshTaskCount--;
+			if (_this->m_ActiveRefreshTaskCount == 0)
+				return _this->m_ProgressBar->put_Visibility(Visibility_Collapsed);
 
 			return S_OK;
 		}).Get(), &asyncAction);
