@@ -20,10 +20,10 @@ private:
 
 	EventRegistrationToken m_WindowActivatedToken;
 
-	void Cleanup();
-
 protected:
 	HRESULT SetBaseInstance(IInspectable* nonDelegatingBase);
+	virtual void Cleanup();
+
 	inline WRL::ComPtr<ABI::Windows::UI::Xaml::IWindow> GetWindow() const { return m_Window; }
 	inline WRL::ComPtr<ABI::Windows::UI::Core::ICoreDispatcher> GetDispatcher() const { return m_Dispatcher; }
 
@@ -47,6 +47,13 @@ public:
 		ReturnIfFailed(hr);
 
 		return xamlApplication->SetBaseInstance(innerApplication.Get());
+	}
+
+	template <typename Callback>
+	HRESULT ExecuteOnUIThread(Callback&& callback)
+	{
+		WRL::ComPtr<IAsyncAction> asyncAction;
+		return m_Dispatcher->RunAsync(CoreDispatcherPriority_Normal, Utilities::EventHandlerFactory<IDispatchedHandler>::Make(std::forward<Callback>(callback)).Get(), &asyncAction);
 	}
 
 	// IApplication

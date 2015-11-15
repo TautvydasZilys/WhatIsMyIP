@@ -13,6 +13,7 @@ private:
 	WRL::ComPtr<ABI::Windows::UI::Xaml::Controls::ITextBlock> m_TextBlock;
 	WRL::ComPtr<ABI::Windows::UI::Xaml::IUIElement> m_ProgressBar;
 	uint32_t m_ActiveRefreshTaskCount;
+	EventRegistrationToken m_OnNetworkStatusChangedToken;
 
 	HRESULT CreateXamlLayout();
 	HRESULT RefreshIPInformationText();
@@ -22,6 +23,9 @@ private:
 	HRESULT CreateScrollViewer(ABI::Windows::UI::Xaml::IUIElement** outScrollViewer);
 	HRESULT CreateProgressBar(ABI::Windows::UI::Xaml::IUIElement** outProgressBar);
 	HRESULT CreateIPInformationTextBlock(ABI::Windows::UI::Xaml::IUIElement** outTextBlock);
+
+protected:
+	virtual void Cleanup() override;
 
 public:
 	WhatIsMyIPApp();

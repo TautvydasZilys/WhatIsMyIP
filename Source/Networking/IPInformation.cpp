@@ -284,3 +284,21 @@ HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING addr
 	ConvertConnectionProfileInformationToConnectionProperties(profileInfo, connectionProperties);
 	return S_OK;
 }
+
+HRESULT Networking::IPInformation::SubscribeToOnNetworkStatusChanged(ABI::Windows::Networking::Connectivity::INetworkStatusChangedEventHandler* eventHandler, EventRegistrationToken* eventToken)
+{
+	WRL::ComPtr<INetworkInformationStatics> networkInformation;
+	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation").Get(), &networkInformation);
+	ReturnIfFailed(hr);
+
+	return networkInformation->add_NetworkStatusChanged(eventHandler, eventToken);
+}
+
+HRESULT Networking::IPInformation::UnsubscribeFromOnNetworkStatusChanged(EventRegistrationToken eventToken)
+{
+	WRL::ComPtr<INetworkInformationStatics> networkInformation;
+	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation").Get(), &networkInformation);
+	ReturnIfFailed(hr);
+
+	return networkInformation->remove_NetworkStatusChanged(eventToken);
+}

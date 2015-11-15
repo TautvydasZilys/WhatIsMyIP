@@ -8,6 +8,7 @@
 using namespace ABI::Windows::ApplicationModel::Activation;
 using namespace ABI::Windows::Foundation;
 using namespace ABI::Windows::Foundation::Collections;
+using namespace ABI::Windows::Networking::Connectivity;
 using namespace ABI::Windows::UI;
 using namespace ABI::Windows::UI::Core;
 using namespace ABI::Windows::UI::ViewManagement;
@@ -19,6 +20,18 @@ using namespace UI;
 WhatIsMyIPApp::WhatIsMyIPApp() :
 	m_ActiveRefreshTaskCount(0)
 {
+	m_OnNetworkStatusChangedToken.value = 0;
+}
+
+void WhatIsMyIPApp::Cleanup()
+{
+	if (m_OnNetworkStatusChangedToken.value != 0)
+	{
+		auto hr = Networking::IPInformation::UnsubscribeFromOnNetworkStatusChanged(m_OnNetworkStatusChangedToken);
+		Assert(SUCCEEDED(hr));
+	}
+
+	XamlApplication::Cleanup();
 }
 
 HRESULT WhatIsMyIPApp::CreatePage(IUIElement** outPage)
@@ -238,8 +251,7 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 		auto hr = WindowsCreateString(str.c_str(), static_cast<uint32_t>(str.length()), &text);
 		ReturnIfFailed(hr);
 
-		WRL::ComPtr<IAsyncAction> asyncAction;
-		hr = _this->GetDispatcher()->RunAsync(CoreDispatcherPriority_Normal, Utilities::EventHandlerFactory<IDispatchedHandler>::Make([_this, text]() -> HRESULT
+		hr = _this->ExecuteOnUIThread([_this, text]() -> HRESULT
 		{
 			WRL::HString str;
 			str.Attach(text);
@@ -252,7 +264,7 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 				return _this->m_ProgressBar->put_Visibility(Visibility_Collapsed);
 
 			return S_OK;
-		}).Get(), &asyncAction);
+		});
 
 		if (FAILED(hr))
 			WindowsDeleteString(text);
@@ -268,6 +280,15 @@ HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* a
 
 	hr = GetWindow()->put_Content(m_RootElement.Get());
 	ReturnIfFailed(hr);
+
+	WRL::ComPtr<WhatIsMyIPApp> _this = this;
+	hr = Networking::IPInformation::SubscribeToOnNetworkStatusChanged(Utilities::EventHandlerFactory<INetworkStatusChangedEventHandler>::Make([_this](IInspectable* sender) -> HRESULT
+	{
+		return _this->ExecuteOnUIThread([_this]()
+		{
+			return _this->RefreshIPInformationText();
+		});
+	}).Get(), &m_OnNetworkStatusChangedToken);
 
 	return XamlApplication::OnLaunched(args);
 }

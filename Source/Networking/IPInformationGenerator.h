@@ -135,7 +135,7 @@ public:
 			WRL::ComPtr<ABI::Windows::Networking::Connectivity::IConnectionProfile> connectionProfile;
 			auto hr = asyncOperation->GetResults(&connectionProfile);
 
-			if (SUCCEEDED(hr))
+			if (SUCCEEDED(hr) && connectionProfile != nullptr)
 			{
 				Utilities::CriticalSection::Lock lock(m_ConnectionProfilesCriticalSection);
 				m_ConnectionProfiles.push_back(std::move(connectionProfile));
