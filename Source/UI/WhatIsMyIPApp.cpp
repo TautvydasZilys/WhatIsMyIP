@@ -16,6 +16,11 @@ using namespace ABI::Windows::UI::Xaml::Controls;
 using namespace ABI::Windows::UI::Xaml::Media;
 using namespace UI;
 
+WhatIsMyIPApp::WhatIsMyIPApp() :
+	m_ActiveRefreshTaskCount(0)
+{
+}
+
 HRESULT WhatIsMyIPApp::CreatePage(IUIElement** outPage)
 {
 	WRL::ComPtr<IPage> page;
@@ -56,15 +61,22 @@ HRESULT WhatIsMyIPApp::CreateRootGrid(IUIElement** outGrid)
 	hr = gridPanel->put_Background(gridBackground.Get());
 	ReturnIfFailed(hr);
 
-	WRL::ComPtr<IUIElement> scrollViewer;
-	hr = CreateScrollViewer(&scrollViewer);
-	ReturnIfFailed(hr);
-
 	WRL::ComPtr<IVector<UIElement*>> gridChildren;
 	hr = gridPanel->get_Children(&gridChildren);
 	ReturnIfFailed(hr);
 
-	hr = gridChildren->Append(scrollViewer.Get());
+	WRL::ComPtr<IUIElement> uiElement;
+
+	hr = CreateScrollViewer(&uiElement);
+	ReturnIfFailed(hr);
+
+	hr = gridChildren->Append(uiElement.Get());
+	ReturnIfFailed(hr);
+
+	hr = CreateProgressBar(&uiElement);
+	ReturnIfFailed(hr);
+
+	hr = gridChildren->Append(uiElement.Get());
 	ReturnIfFailed(hr);
 
 	return grid.Get()->QueryInterface(outGrid);
@@ -95,6 +107,36 @@ HRESULT WhatIsMyIPApp::CreateScrollViewer(IUIElement** outScrollViewer)
 	ReturnIfFailed(hr);
 
 	return scrollViewer.Get()->QueryInterface(outScrollViewer);
+}
+
+HRESULT WhatIsMyIPApp::CreateProgressBar(IUIElement** outProgressBar)
+{
+	WRL::ComPtr<IProgressBar> progressBar;
+	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.ProgressBar").Get(), &progressBar);
+	ReturnIfFailed(hr);
+
+	hr = progressBar->put_IsIndeterminate(true);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IFrameworkElement> progressBarFrameworkElement;
+	hr = progressBar.As(&progressBarFrameworkElement);
+	ReturnIfFailed(hr);
+
+	hr = progressBarFrameworkElement->put_VerticalAlignment(VerticalAlignment_Top);
+	ReturnIfFailed(hr);
+
+	hr = progressBarFrameworkElement->put_HorizontalAlignment(HorizontalAlignment_Stretch);
+	ReturnIfFailed(hr);
+
+	progressBar.As(&m_ProgressBar);
+	ReturnIfFailed(hr);
+
+	hr = m_ProgressBar->put_Visibility(Visibility_Collapsed);
+	ReturnIfFailed(hr);
+
+	*outProgressBar = m_ProgressBar.Get();
+	(*outProgressBar)->AddRef();
+	return S_OK;
 }
 
 HRESULT WhatIsMyIPApp::CreateIPInformationTextBlock(IUIElement** outTextBlock)
@@ -164,6 +206,14 @@ HRESULT WhatIsMyIPApp::CreateXamlLayout()
 
 HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 {
+	if (m_ActiveRefreshTaskCount == 0)
+	{
+		auto hr = m_ProgressBar->put_Visibility(Visibility_Visible);
+		ReturnIfFailed(hr);
+	}
+
+	m_ActiveRefreshTaskCount++;
+
 	return Networking::GenerateIPInformationAsync([this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
 	{
 		std::wstringstream textStream;
@@ -195,6 +245,10 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 
 			auto hr = m_TextBlock->put_Text(text);
 			ReturnIfFailed(hr);
+
+			m_ActiveRefreshTaskCount--;
+			if (m_ActiveRefreshTaskCount == 0)
+				return m_ProgressBar->put_Visibility(Visibility_Collapsed);
 
 			return S_OK;
 		}).Get(), &asyncAction);
