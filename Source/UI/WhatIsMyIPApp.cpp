@@ -57,40 +57,97 @@ HRESULT WhatIsMyIPApp::CreatePage(IUIElement** outPage)
 	return page.Get()->QueryInterface(outPage);
 }
 
+static inline HRESULT AddGridRow(IVector<RowDefinition*>* rows, double height, GridUnitType unitType)
+{
+	WRL::ComPtr<IRowDefinition> row;
+	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.RowDefinition").Get(), &row);
+	ReturnIfFailed(hr);
+
+	GridLength rowHeight = { height, unitType };
+	hr = row->put_Height(rowHeight);
+	ReturnIfFailed(hr);
+
+	return rows->Append(row.Get());
+}
+
+static inline HRESULT SetGridRow(IGridStatics* gridStatics, IUIElement* child, int row)
+{
+	WRL::ComPtr<IFrameworkElement> frameworkElement;
+	auto hr = child->QueryInterface(__uuidof(IFrameworkElement), &frameworkElement);
+	ReturnIfFailed(hr);
+
+	return gridStatics->SetRow(frameworkElement.Get(), row);
+}
+
 HRESULT WhatIsMyIPApp::CreateRootGrid(IUIElement** outGrid)
 {
+	WRL::ComPtr<IGridStatics> gridStatics;
+	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.Xaml.Controls.Grid").Get(), &gridStatics);
+	ReturnIfFailed(hr);
+
 	WRL::ComPtr<IGrid> grid;
-	HRESULT hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.Grid").Get(), &grid);
+	hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.Grid").Get(), &grid);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IPanel> gridPanel;
 	hr = grid.As(&gridPanel);
 	ReturnIfFailed(hr);
 
-	WRL::ComPtr<IBrush> gridBackground;
-	hr = UI::VisualObjects::GetBrushFromColor(0, 0, 0, 255, &gridBackground);
-	ReturnIfFailed(hr);
+	// Row layout
+	{
+		WRL::ComPtr<IVector<RowDefinition*>> rowDefinitions;
+		hr = grid->get_RowDefinitions(&rowDefinitions);
+		ReturnIfFailed(hr);
 
-	hr = gridPanel->put_Background(gridBackground.Get());
-	ReturnIfFailed(hr);
+		hr = AddGridRow(rowDefinitions.Get(), 15.0, GridUnitType_Pixel);
+		ReturnIfFailed(hr);
 
-	WRL::ComPtr<IVector<UIElement*>> gridChildren;
-	hr = gridPanel->get_Children(&gridChildren);
-	ReturnIfFailed(hr);
+		hr = AddGridRow(rowDefinitions.Get(), 0.0, GridUnitType_Auto);
+		ReturnIfFailed(hr);
+	}
 
-	WRL::ComPtr<IUIElement> uiElement;
+	// Background
+	{
+		WRL::ComPtr<IBrush> gridBackground;
+		hr = UI::VisualObjects::GetBrushFromColor(0, 0, 0, 255, &gridBackground);
+		ReturnIfFailed(hr);
 
-	hr = CreateScrollViewer(&uiElement);
-	ReturnIfFailed(hr);
+		hr = gridPanel->put_Background(gridBackground.Get());
+		ReturnIfFailed(hr);
+	}
 
-	hr = gridChildren->Append(uiElement.Get());
-	ReturnIfFailed(hr);
+	// Children
+	{
+		WRL::ComPtr<IVector<UIElement*>> gridChildren;
+		hr = gridPanel->get_Children(&gridChildren);
+		ReturnIfFailed(hr);
 
-	hr = CreateProgressBar(&uiElement);
-	ReturnIfFailed(hr);
+		WRL::ComPtr<IUIElement> uiElement;
 
-	hr = gridChildren->Append(uiElement.Get());
-	ReturnIfFailed(hr);
+		// Progress bar
+		{
+			hr = CreateProgressBar(&uiElement);
+			ReturnIfFailed(hr);
+
+			hr = gridChildren->Append(uiElement.Get());
+			ReturnIfFailed(hr);
+
+			hr = SetGridRow(gridStatics.Get(), uiElement.Get(), 0);
+			ReturnIfFailed(hr);
+		}
+
+		// Scrollviewer
+		{
+			hr = CreateScrollViewer(&uiElement);
+			ReturnIfFailed(hr);
+
+			hr = gridChildren->Append(uiElement.Get());
+			ReturnIfFailed(hr);
+
+			hr = SetGridRow(gridStatics.Get(), uiElement.Get(), 1);
+			ReturnIfFailed(hr);
+		}
+	}
 
 	return grid.Get()->QueryInterface(outGrid);
 }
