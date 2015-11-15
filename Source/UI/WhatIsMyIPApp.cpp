@@ -427,18 +427,25 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 		std::wstringstream textStream;
 		HSTRING text;
 
-		for (auto& properties : connectionProperties)
+		if (connectionProperties.size() > 0)
 		{
-			textStream << properties.name << std::endl;
-
-			for (auto& property : properties.properties)
+			for (auto& properties : connectionProperties)
 			{
-				textStream << L"    ";
-				textStream << std::setw(28) << std::left << property.first;
-				textStream << property.second << std::endl;
-			}
+				textStream << properties.name << std::endl;
 
-			textStream << std::endl;
+				for (auto& property : properties.properties)
+				{
+					textStream << L"    ";
+					textStream << std::setw(28) << std::left << property.first;
+					textStream << property.second << std::endl;
+				}
+
+				textStream << std::endl;
+			}
+		}
+		else
+		{
+			textStream << L"There are no connections available." << std::endl;
 		}
 
 		auto str = textStream.str();
