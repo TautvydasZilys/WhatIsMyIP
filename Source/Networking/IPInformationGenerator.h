@@ -118,6 +118,9 @@ private:
 
 		for (size_t i = 0; i < m_ConnectionProfiles.size(); i++)
 		{
+			if (connectionAddresses[i] == nullptr)
+				continue;
+
 			ConnectionProperties properties;
 			hr = IPInformation::FillConnectionProfileInformation(connectionAddresses[i], m_ConnectionProfiles[i].Get(), properties);
 			ContinueIfFailed(hr);
