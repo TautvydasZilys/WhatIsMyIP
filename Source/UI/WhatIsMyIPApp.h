@@ -12,17 +12,25 @@ private:
 	WRL::ComPtr<ABI::Windows::UI::Xaml::IUIElement> m_RootElement;
 	WRL::ComPtr<ABI::Windows::UI::Xaml::Controls::ITextBlock> m_TextBlock;
 	WRL::ComPtr<ABI::Windows::UI::Xaml::IUIElement> m_ProgressBar;
+	WRL::ComPtr<ABI::Windows::UI::Xaml::Controls::Primitives::IButtonBase> m_RefreshButton;
 	uint32_t m_ActiveRefreshTaskCount;
+
 	EventRegistrationToken m_OnNetworkStatusChangedToken;
+	EventRegistrationToken m_RefreshButtonClickedToken;
 
 	HRESULT CreateXamlLayout();
 	HRESULT RefreshIPInformationText();
 
 	HRESULT CreatePage(ABI::Windows::UI::Xaml::IUIElement** page);
 	HRESULT CreateRootGrid(ABI::Windows::UI::Xaml::IUIElement** outGrid);
-	HRESULT CreateScrollViewer(ABI::Windows::UI::Xaml::IUIElement** outScrollViewer);
+	HRESULT CreateScrollViewerForTextBlock(ABI::Windows::UI::Xaml::IUIElement** outScrollViewer);
+	HRESULT CreateIPInformationTextBlock(ABI::Windows::UI::Xaml::Controls::ITextBlock** outTextBlock);
+
 	HRESULT CreateProgressBar(ABI::Windows::UI::Xaml::IUIElement** outProgressBar);
-	HRESULT CreateIPInformationTextBlock(ABI::Windows::UI::Xaml::IUIElement** outTextBlock);
+
+	HRESULT CreateBottomAppBar(ABI::Windows::UI::Xaml::Controls::IAppBar** outAppBar);
+	HRESULT CreateStackPanelForAppBar(ABI::Windows::UI::Xaml::Controls::IStackPanel** outStackPanel);
+	HRESULT CreateRefreshButtomForAppBar(ABI::Windows::UI::Xaml::IUIElement** outButton);
 
 protected:
 	virtual void Cleanup() override;

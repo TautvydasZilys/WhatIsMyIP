@@ -14,6 +14,7 @@ using namespace ABI::Windows::UI::Core;
 using namespace ABI::Windows::UI::ViewManagement;
 using namespace ABI::Windows::UI::Xaml;
 using namespace ABI::Windows::UI::Xaml::Controls;
+using namespace ABI::Windows::UI::Xaml::Controls::Primitives;
 using namespace ABI::Windows::UI::Xaml::Media;
 using namespace UI;
 
@@ -21,13 +22,22 @@ WhatIsMyIPApp::WhatIsMyIPApp() :
 	m_ActiveRefreshTaskCount(0)
 {
 	m_OnNetworkStatusChangedToken.value = 0;
+	m_RefreshButtonClickedToken.value = 0;
 }
 
 void WhatIsMyIPApp::Cleanup()
 {
+	HRESULT hr;
+
 	if (m_OnNetworkStatusChangedToken.value != 0)
 	{
-		auto hr = Networking::IPInformation::UnsubscribeFromOnNetworkStatusChanged(m_OnNetworkStatusChangedToken);
+		hr = Networking::IPInformation::UnsubscribeFromOnNetworkStatusChanged(m_OnNetworkStatusChangedToken);
+		Assert(SUCCEEDED(hr));
+	}
+	
+	if (m_RefreshButton != nullptr && m_RefreshButtonClickedToken.value != 0)
+	{
+		hr = m_RefreshButton->remove_Click(m_RefreshButtonClickedToken);
 		Assert(SUCCEEDED(hr));
 	}
 
@@ -51,9 +61,13 @@ HRESULT WhatIsMyIPApp::CreatePage(IUIElement** outPage)
 	hr = pageControl->put_Content(grid.Get());
 	ReturnIfFailed(hr);
 
-	hr = page.As(&m_RootElement);
+	WRL::ComPtr<IAppBar> bottomAppBar;
+	hr = CreateBottomAppBar(&bottomAppBar);
 	ReturnIfFailed(hr);
-	
+
+	page->put_BottomAppBar(bottomAppBar.Get());
+	ReturnIfFailed(hr);
+
 	return page.Get()->QueryInterface(outPage);
 }
 
@@ -138,7 +152,7 @@ HRESULT WhatIsMyIPApp::CreateRootGrid(IUIElement** outGrid)
 
 		// Scrollviewer
 		{
-			hr = CreateScrollViewer(&uiElement);
+			hr = CreateScrollViewerForTextBlock(&uiElement);
 			ReturnIfFailed(hr);
 
 			hr = gridChildren->Append(uiElement.Get());
@@ -152,28 +166,34 @@ HRESULT WhatIsMyIPApp::CreateRootGrid(IUIElement** outGrid)
 	return grid.Get()->QueryInterface(outGrid);
 }
 
-HRESULT WhatIsMyIPApp::CreateScrollViewer(IUIElement** outScrollViewer)
+static inline HRESULT CreateScrollViewerWithContent(IInspectable* content, IScrollViewer** outScrollViewer)
 {
 	WRL::ComPtr<IScrollViewer> scrollViewer;
 	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.ScrollViewer").Get(), &scrollViewer);
-	ReturnIfFailed(hr);
-
-	hr = scrollViewer->put_HorizontalScrollBarVisibility(ScrollBarVisibility_Auto);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IContentControl> scrollViewerContentControl;
 	hr = scrollViewer.As(&scrollViewerContentControl);
 	ReturnIfFailed(hr);
 
-	WRL::ComPtr<IUIElement> textBlockElement;
-	hr = CreateIPInformationTextBlock(&textBlockElement);
+	hr = scrollViewerContentControl->put_Content(content);
 	ReturnIfFailed(hr);
 
-	hr = scrollViewerContentControl->put_Content(textBlockElement.Get());
+	*outScrollViewer = scrollViewer.Detach();
+	return S_OK;
+}
+
+HRESULT WhatIsMyIPApp::CreateScrollViewerForTextBlock(IUIElement** outScrollViewer)
+{
+	WRL::ComPtr<ITextBlock> textBlock;
+	auto hr = CreateIPInformationTextBlock(&textBlock);
 	ReturnIfFailed(hr);
 
-	WRL::ComPtr<IUIElement> scrollViewerElement;
-	hr = scrollViewer.As(&scrollViewerElement);
+	WRL::ComPtr<IScrollViewer> scrollViewer;
+	hr = CreateScrollViewerWithContent(textBlock.Get(), &scrollViewer);
+	ReturnIfFailed(hr);
+
+	hr = scrollViewer->put_HorizontalScrollBarVisibility(ScrollBarVisibility_Auto);
 	ReturnIfFailed(hr);
 
 	return scrollViewer.Get()->QueryInterface(outScrollViewer);
@@ -209,7 +229,7 @@ HRESULT WhatIsMyIPApp::CreateProgressBar(IUIElement** outProgressBar)
 	return S_OK;
 }
 
-HRESULT WhatIsMyIPApp::CreateIPInformationTextBlock(IUIElement** outTextBlock)
+HRESULT WhatIsMyIPApp::CreateIPInformationTextBlock(ITextBlock** outTextBlock)
 {
 	WRL::ComPtr<ITextBlock> textBlock;
 	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.TextBlock").Get(), &textBlock);
@@ -233,7 +253,124 @@ HRESULT WhatIsMyIPApp::CreateIPInformationTextBlock(IUIElement** outTextBlock)
 	}
 
 	m_TextBlock = textBlock.Detach();
-	return m_TextBlock.Get()->QueryInterface(outTextBlock);
+	*outTextBlock = m_TextBlock.Get();
+	(*outTextBlock)->AddRef();
+	return S_OK;
+}
+
+HRESULT WhatIsMyIPApp::CreateBottomAppBar(IAppBar** outAppBar)
+{
+	WRL::ComPtr<IAppBar> appBar;
+	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.AppBar").Get(), &appBar);
+	if (SUCCEEDED(hr))
+	{
+		// This path fails on WP8.1... AppBar creation fails with ERROR_NOT_SUPPORTED
+		WRL::ComPtr<IStackPanel> stackPanel;
+		hr = CreateStackPanelForAppBar(&stackPanel);
+		ReturnIfFailed(hr);
+
+		WRL::ComPtr<IContentControl> appBarContentControl;
+		hr = appBar.As(&appBarContentControl);
+		ReturnIfFailed(hr);
+
+		hr = appBarContentControl->put_Content(stackPanel.Get());
+		ReturnIfFailed(hr);
+	}
+	else
+	{
+		hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.CommandBar").Get(), &appBar);
+		ReturnIfFailed(hr);
+
+		WRL::ComPtr<ICommandBar> commandBar;
+		hr = appBar.As(&commandBar);
+		ReturnIfFailed(hr);
+
+		WRL::ComPtr<IUIElement> refreshButton;
+		hr = CreateRefreshButtomForAppBar(&refreshButton);
+		ReturnIfFailed(hr);
+
+		WRL::ComPtr<ICommandBarElement> refreshCommand;
+		hr = refreshButton.As(&refreshCommand);
+		ReturnIfFailed(hr);
+
+		WRL::ComPtr<IObservableVector<ICommandBarElement*>> primaryCommands;
+		hr = commandBar->get_PrimaryCommands(&primaryCommands);
+		ReturnIfFailed(hr);
+
+		WRL::ComPtr<IVector<ICommandBarElement*>> primaryCommandsVector;
+		hr = primaryCommands.As(&primaryCommandsVector);
+		ReturnIfFailed(hr);
+
+		hr = primaryCommandsVector->Append(refreshCommand.Get());
+		ReturnIfFailed(hr);
+	}
+
+	*outAppBar = appBar.Detach();
+	return S_OK;
+}
+
+HRESULT WhatIsMyIPApp::CreateStackPanelForAppBar(IStackPanel** outStackPanel)
+{
+	WRL::ComPtr<IStackPanel> stackPanel;
+	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.StackPanel").Get(), &stackPanel);
+	ReturnIfFailed(hr);
+
+	hr = stackPanel->put_Orientation(Orientation_Horizontal);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IPanel> panel;
+	hr = stackPanel.As(&panel);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IVector<UIElement*>> children;
+	hr = panel->get_Children(&children);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IUIElement> refreshButton;
+	hr = CreateRefreshButtomForAppBar(&refreshButton);
+	ReturnIfFailed(hr);
+
+	hr = children->Append(refreshButton.Get());
+	ReturnIfFailed(hr);
+
+	*outStackPanel = stackPanel.Detach();
+	return S_OK;
+}
+
+HRESULT WhatIsMyIPApp::CreateRefreshButtomForAppBar(IUIElement** outButton)
+{
+	WRL::ComPtr<IAppBarButton> button;
+	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.AppBarButton").Get(), &button);
+	ReturnIfFailed(hr);
+
+	hr = button->put_Label(WRL::HStringReference(L"Refresh").Get());
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<ISymbolIconFactory> symbolIconFactory;
+	hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.Xaml.Controls.SymbolIcon").Get(), &symbolIconFactory);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<ISymbolIcon> symbolIcon;
+	hr = symbolIconFactory->CreateInstanceWithSymbol(Symbol_Refresh, &symbolIcon);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IIconElement> iconElement;
+	hr = symbolIcon.As(&iconElement);
+	ReturnIfFailed(hr);
+
+	hr = button->put_Icon(iconElement.Get());
+	ReturnIfFailed(hr);
+
+	hr = button.As(&m_RefreshButton);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<WhatIsMyIPApp> _this = this;
+	m_RefreshButton->add_Click(Utilities::EventHandlerFactory<IRoutedEventHandler>::Make([_this](IInspectable* sender, IRoutedEventArgs* args)
+	{
+		return _this->RefreshIPInformationText();
+	}).Get(), &m_RefreshButtonClickedToken);
+
+	return button.Get()->QueryInterface(outButton);
 }
 
 #if !WINDOWS_8_1
