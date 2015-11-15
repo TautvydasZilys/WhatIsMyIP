@@ -1,5 +1,6 @@
 #pragma once
 
+#include <dwrite_1.h>
 #include <roapi.h>
 #include <windows.h>
 #include <windows.networking.connectivity.h>

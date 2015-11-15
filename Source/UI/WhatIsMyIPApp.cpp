@@ -2,6 +2,7 @@
 #include "Networking\ConnectionProperties.h"
 #include "Networking\IPInformationGenerator.h"
 #include "Utilities\EventHandler.h"
+#include "VisualObjects.h"
 #include "WhatIsMyIPApp.h"
 
 using namespace ABI::Windows::ApplicationModel::Activation;
@@ -14,24 +15,6 @@ using namespace ABI::Windows::UI::Xaml;
 using namespace ABI::Windows::UI::Xaml::Controls;
 using namespace ABI::Windows::UI::Xaml::Media;
 using namespace UI;
-
-static HRESULT ApplyTextColor(ITextBlock* textBlock)
-{
-	WRL::ComPtr<ISolidColorBrushFactory> brushFactory;
-	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.Xaml.Media.SolidColorBrush").Get(), &brushFactory);
-	ReturnIfFailed(hr);
-
-	Color white = { 255, 255, 255, 255 };
-	WRL::ComPtr<ISolidColorBrush> solidColorBrush;
-	hr = brushFactory->CreateInstanceWithColor(white, &solidColorBrush);
-	ReturnIfFailed(hr);
-
-	WRL::ComPtr<IBrush> brush;
-	hr = solidColorBrush.As(&brush);
-	ReturnIfFailed(hr);
-
-	return S_OK;
-}
 
 HRESULT WhatIsMyIPApp::CreatePage(IUIElement** outPage)
 {
@@ -64,6 +47,13 @@ HRESULT WhatIsMyIPApp::CreateRootGrid(IUIElement** outGrid)
 
 	WRL::ComPtr<IPanel> gridPanel;
 	hr = grid.As(&gridPanel);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IBrush> gridBackground;
+	hr = UI::VisualObjects::GetBrushFromColor(0, 0, 0, 255, &gridBackground);
+	ReturnIfFailed(hr);
+
+	hr = gridPanel->put_Background(gridBackground.Get());
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IUIElement> scrollViewer;
@@ -113,8 +103,22 @@ HRESULT WhatIsMyIPApp::CreateIPInformationTextBlock(IUIElement** outTextBlock)
 	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.TextBlock").Get(), &textBlock);
 	ReturnIfFailed(hr);
 
-	hr = ApplyTextColor(textBlock.Get());
+	WRL::ComPtr<IBrush> textBrush;
+	hr = VisualObjects::GetBrushFromColor(255, 255, 255, 255, &textBrush);
 	ReturnIfFailed(hr);
+
+	hr = textBlock->put_Foreground(textBrush.Get());
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IFontFamily> font;
+	hr = VisualObjects::GetMonospaceFont(&font);
+	ReturnIfFailed(hr);
+
+	if (hr != S_FALSE)
+	{
+		hr = textBlock->put_FontFamily(font.Get());
+		ReturnIfFailed(hr);
+	}
 
 	m_TextBlock = textBlock.Detach();
 	return m_TextBlock.Get()->QueryInterface(outTextBlock);
@@ -172,7 +176,7 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 			for (auto& property : properties.properties)
 			{
 				textStream << L"    ";
-				textStream << std::setw(36) << std::left << property.first;
+				textStream << std::setw(28) << std::left << property.first;
 				textStream << property.second << std::endl;
 			}
 

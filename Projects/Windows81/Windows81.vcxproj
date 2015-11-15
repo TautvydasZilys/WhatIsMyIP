@@ -64,6 +64,9 @@
     <ClCompile>
       <PreprocessorDefinitions>WINDOWS_8_1=1;_UNICODE;UNICODE;%(PreprocessorDefinitions);</PreprocessorDefinitions>
     </ClCompile>
+    <Link>
+      <AdditionalOptions>Dwrite.lib %(AdditionalOptions)</AdditionalOptions>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">

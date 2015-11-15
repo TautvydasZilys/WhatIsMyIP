@@ -214,7 +214,7 @@ static void ConvertConnectionProfileInformationToConnectionProperties(const Conn
 	
 	if (profileInfo.hasSignalStrength)
 	{
-		properties[L"Signal strength"] = profileInfo.signalStrength;
+		properties[L"Signal strength"] = std::to_wstring(static_cast<uint32_t>(profileInfo.signalStrength));
 	}
 
 	if (profileInfo.isWWanConnection)
