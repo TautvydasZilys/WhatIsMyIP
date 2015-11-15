@@ -3,7 +3,10 @@
 #include "IPInformation.h"
 #include "NetworkEnumNames.h"
 #include "Utilities\EventHandler.h"
+#include "Utilities\SynchronousOperation.h"
+#include "Utilities\Vector.h"
 
+using namespace ABI::Windows::Devices::Enumeration::Pnp;
 using namespace ABI::Windows::Foundation;
 using namespace ABI::Windows::Foundation::Collections;
 using namespace ABI::Windows::Networking;
@@ -44,12 +47,132 @@ struct ConnectionProfileInformation
 	WRL::HString wlanSSID;
 };
 
+static HRESULT GetDefaultNetworkAdapterName(HSTRING* outName)
+{
+	const wchar_t kDefaultName[] = L"Unknown Network Adapter";
+	return WindowsCreateString(kDefaultName, ARRAYSIZE(kDefaultName) - 1, outName);
+}
+
+static inline HRESULT UnboxString(IInspectable* boxed, HSTRING* outUnboxed)
+{
+	if (boxed == nullptr)
+	{
+		*outUnboxed = nullptr;
+		return S_OK;
+	}
+
+	WRL::ComPtr<IPropertyValue> propertyValue;
+	auto hr = boxed->QueryInterface(__uuidof(IPropertyValue), &propertyValue);
+	ReturnIfFailed(hr);
+
+	return propertyValue->GetString(outUnboxed);
+}
+
+const wchar_t kDEVPKEY_Device_InstanceId[] = L"{78c34fc8-104a-4aca-9ea4-524d52996e57} 256";
+const wchar_t kDEVPKEY_Device_DeviceDesc[] = L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 2";
+const wchar_t kDEVPKEY_Device_FriendlyName[] = L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 14";
+
+static HRESULT GetNetworkAdapterName(INetworkAdapter* networkAdapter, HSTRING* outName)
+{
+	GUID adapterId;
+	auto hr = networkAdapter->get_NetworkAdapterId(&adapterId);
+	ReturnIfFailed(hr);
+
+	const int kBufferLength = 40;
+	wchar_t adapterIdStr[kBufferLength];
+	auto adapterIdStrLength = StringFromGUID2(adapterId, adapterIdStr, kBufferLength);
+	Assert(adapterIdStrLength != 0);
+	
+	WRL::ComPtr<IPnpObjectStatics> pnpObjectStatics;
+	hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.Devices.Enumeration.Pnp.PnpObject").Get(), &pnpObjectStatics);
+	ReturnIfFailed(hr);
+
+	auto interfaceInstanceIdProperties = WRL::Make<Utilities::Vector<HSTRING>>();
+	interfaceInstanceIdProperties->Append(WRL::HStringReference(kDEVPKEY_Device_InstanceId).Get());
+
+	WRL::ComPtr<IAsyncOperation<PnpObjectCollection*>> findPnpObjectsOperation;
+	hr = pnpObjectStatics->FindAllAsync(PnpObjectType_DeviceInterface, interfaceInstanceIdProperties.Get(), &findPnpObjectsOperation);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IVectorView<PnpObject*>> pnpObjects;
+	hr = Utilities::PerformSynchronousOperation(findPnpObjectsOperation.Get(), &pnpObjects);
+	ReturnIfFailed(hr);
+
+	uint32_t pnpObjectCount;
+	hr = pnpObjects->get_Size(&pnpObjectCount);
+	ReturnIfFailed(hr);
+
+	WRL::HString networkAdapterDeviceId;
+
+	for (uint32_t i = 0; i < pnpObjectCount; i++)
+	{
+		WRL::ComPtr<IPnpObject> pnpObject;
+		hr = pnpObjects->GetAt(i, &pnpObject);
+		ContinueIfFailed(hr);
+
+		WRL::HString objectId;
+		hr = pnpObject->get_Id(objectId.GetAddressOf());
+		ContinueIfFailed(hr);
+
+		uint32_t idLength;
+		auto objectIdCharacters = objectId.GetRawBuffer(&idLength);
+		
+		if (wcsstr(objectIdCharacters, adapterIdStr) != nullptr)
+		{
+			WRL::ComPtr<IMapView<HSTRING, IInspectable*>> objectProperties;
+			hr = pnpObject->get_Properties(&objectProperties);
+			ContinueIfFailed(hr);
+
+			WRL::ComPtr<IInspectable> instanceIdInspectable;
+			hr = objectProperties->Lookup(WRL::HStringReference(L"System.Devices.DeviceInstanceId").Get(), &instanceIdInspectable);
+			ContinueIfFailed(hr);
+			
+			hr = UnboxString(instanceIdInspectable.Get(), networkAdapterDeviceId.GetAddressOf());
+			ContinueIfFailed(hr);
+
+			if (networkAdapterDeviceId != nullptr)
+				break;
+		}
+	}
+
+	if (networkAdapterDeviceId == nullptr)
+		return GetDefaultNetworkAdapterName(outName);
+
+	auto adapterNameProperties = WRL::Make<Utilities::Vector<HSTRING>>();
+	adapterNameProperties->Append(WRL::HStringReference(kDEVPKEY_Device_FriendlyName).Get());
+	adapterNameProperties->Append(WRL::HStringReference(kDEVPKEY_Device_DeviceDesc).Get()); // Fallback in case friendly name is not available
+
+	WRL::ComPtr<IAsyncOperation<PnpObject*>> getAdapterObjectOperation;
+	hr = pnpObjectStatics->CreateFromIdAsync(PnpObjectType_Device, networkAdapterDeviceId.Get(), adapterNameProperties.Get(), &getAdapterObjectOperation);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IPnpObject> adapterObject;
+	hr = Utilities::PerformSynchronousOperation(getAdapterObjectOperation.Get(), &adapterObject);
+
+	if (FAILED(hr))
+		return GetDefaultNetworkAdapterName(outName);
+
+	WRL::ComPtr<IMapView<HSTRING, IInspectable*>> adapterProperties;
+	hr = adapterObject->get_Properties(&adapterProperties);
+	ReturnIfFailed(hr);
+
+	WRL::ComPtr<IInspectable> nameInspectable;
+	hr = adapterProperties->Lookup(WRL::HStringReference(kDEVPKEY_Device_FriendlyName).Get(), &nameInspectable);
+
+	if (FAILED(hr) || nameInspectable == nullptr)
+	{
+		hr = adapterProperties->Lookup(WRL::HStringReference(kDEVPKEY_Device_DeviceDesc).Get(), &nameInspectable);
+
+		if (FAILED(hr) || nameInspectable == nullptr)
+			return GetDefaultNetworkAdapterName(outName);
+	}
+
+	return UnboxString(nameInspectable.Get(), outName);
+}
+
 static HRESULT GatherProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, ConnectionProfileInformation* profileInfo)
 {
 	auto hr = profileInfo->address.Set(address);
-	ReturnIfFailed(hr);
-
-	hr = connectionProfile->get_ProfileName(profileInfo->name.GetAddressOf());
 	ReturnIfFailed(hr);
 
 	hr = connectionProfile->GetNetworkConnectivityLevel(&profileInfo->connectivityLevel);
@@ -116,6 +239,9 @@ static HRESULT GatherProfileInformation(HSTRING address, IConnectionProfile* con
 	{
 		WRL::ComPtr<INetworkAdapter> networkAdapter;
 		hr = connectionProfile->get_NetworkAdapter(&networkAdapter);
+		ReturnIfFailed(hr);
+
+		hr = GetNetworkAdapterName(networkAdapter.Get(), profileInfo->name.GetAddressOf());
 		ReturnIfFailed(hr);
 
 		hr = networkAdapter->get_IanaInterfaceType(&profileInfo->interfaceType);

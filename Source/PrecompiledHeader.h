@@ -3,6 +3,7 @@
 #include <dwrite_1.h>
 #include <roapi.h>
 #include <windows.h>
+#include <windows.devices.enumeration.pnp.h>
 #include <windows.networking.connectivity.h>
 #include <windows.ui.h>
 #include <windows.ui.viewmanagement.h>
