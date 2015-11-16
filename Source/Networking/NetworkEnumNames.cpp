@@ -348,28 +348,28 @@ const wchar_t* Networking::NetworkEnumNames::GetNetworkAuthenticationTypeName(Ne
 		return L"Unknown";
 
 	case NetworkAuthenticationType_Open80211:
-		return L"Open80211";
+		return L"IEEE 802.11 Open";
 
 	case NetworkAuthenticationType_SharedKey80211:
-		return L"SharedKey80211";
+		return L"IEEE 802.11 Shared Key";
 
 	case NetworkAuthenticationType_Wpa:
-		return L"Wpa";
+		return L"WPA";
 
 	case NetworkAuthenticationType_WpaPsk:
-		return L"WpaPsk";
+		return L"WPA-PSK";
 
 	case NetworkAuthenticationType_WpaNone:
-		return L"WpaNone";
+		return L"WPA-None";
 
 	case NetworkAuthenticationType_Rsna:
-		return L"Rsna";
+		return L"RSNA";
 
 	case NetworkAuthenticationType_RsnaPsk:
-		return L"RsnaPsk";
+		return L"RSNA-PSK";
 
 	case NetworkAuthenticationType_Ihv:
-		return L"Ihv";
+		return L"IHV";
 	}
 }
 
@@ -385,28 +385,28 @@ const wchar_t* Networking::NetworkEnumNames::GetNetworkEncryptionTypeName(Networ
 		return L"Unknown";
 
 	case NetworkEncryptionType_Wep:
-		return L"Wep";
+		return L"WEP";
 
 	case NetworkEncryptionType_Wep40:
-		return L"Wep40";
+		return L"WEP40";
 
 	case NetworkEncryptionType_Wep104:
-		return L"Wep104";
+		return L"WEP104";
 
 	case NetworkEncryptionType_Tkip:
-		return L"Tkip";
+		return L"TKIP";
 
 	case NetworkEncryptionType_Ccmp:
-		return L"Ccmp";
+		return L"CCMP";
 
 	case NetworkEncryptionType_WpaUseGroup:
-		return L"WpaUseGroup";
+		return L"WPA";
 
 	case NetworkEncryptionType_RsnUseGroup:
-		return L"RsnUseGroup";
+		return L"RSN";
 
 	case NetworkEncryptionType_Ihv:
-		return L"Ihv";
+		return L"IHV";
 	}
 }
 
@@ -466,43 +466,43 @@ const wchar_t* Networking::NetworkEnumNames::GetWWanDataClassName(WwanDataClass 
 		return L"None";
 
 	case WwanDataClass_Gprs:
-		return L"Gprs";
+		return L"GPRS";
 
 	case WwanDataClass_Edge:
-		return L"Edge";
+		return L"EDGE";
 
 	case WwanDataClass_Umts:
-		return L"Umts";
+		return L"UMTS";
 
 	case WwanDataClass_Hsdpa:
-		return L"Hsdpa";
+		return L"HSDPA";
 
 	case WwanDataClass_Hsupa:
-		return L"Hsupa";
+		return L"HSUPA";
 
 	case WwanDataClass_LteAdvanced:
-		return L"LteAdvanced";
+		return L"LTE Advanced";
 
 	case WwanDataClass_Cdma1xRtt:
-		return L"Cdma1xRtt";
+		return L"CDMA 1xRTT";
 
 	case WwanDataClass_Cdma1xEvdo:
-		return L"Cdma1xEvdo";
+		return L"CDMA 1xEV-DO";
 
 	case WwanDataClass_Cdma1xEvdoRevA:
-		return L"Cdma1xEvdoRevA";
+		return L"CDMA 1xEV-DO RevA";
 
 	case WwanDataClass_Cdma1xEvdv:
-		return L"Cdma1xEvdv";
+		return L"CDMA 1xEV-DV";
 
 	case WwanDataClass_Cdma3xRtt:
-		return L"Cdma3xRtt";
+		return L"CDMA 3xRTT";
 
 	case WwanDataClass_Cdma1xEvdoRevB:
-		return L"Cdma1xEvdoRevB";
+		return L"CDMA 1xEV-DO RevB";
 
 	case WwanDataClass_CdmaUmb:
-		return L"CdmaUmb";
+		return L"CDMA UMB";
 
 	case WwanDataClass_Custom:
 		return L"Custom";
