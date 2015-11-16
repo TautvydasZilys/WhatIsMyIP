@@ -49,6 +49,12 @@ private:
 	{
 		m_PendingAsyncOperationCount = static_cast<uint32_t>(adapterInfos.size());
 
+		if (m_PendingAsyncOperationCount == 0)
+		{
+			CompleteOperation();
+			return;
+		}
+
 		for (auto& adapterInfo : adapterInfos)
 		{
 			WRL::ComPtr<ABI::Windows::Foundation::IAsyncOperation<ABI::Windows::Networking::Connectivity::ConnectionProfile*>> getProfileOperation;
@@ -71,61 +77,65 @@ private:
 	void CompleteOperation()
 	{
 		HRESULT hr;
-		std::vector<HSTRING> connectionAddresses;
-		connectionAddresses.reserve(m_ConnectionProfiles.size());
-		
-		for (const auto& profile : m_ConnectionProfiles)
+		std::vector<ConnectionProperties> connectionProperties;
+
+		if (m_ConnectionProfiles.size() > 0)
 		{
-			WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter> adapter;
-			hr = profile->get_NetworkAdapter(&adapter);
-			if (FAILED(hr))
+			std::vector<HSTRING> connectionAddresses;
+			connectionAddresses.reserve(m_ConnectionProfiles.size());
+
+			for (const auto& profile : m_ConnectionProfiles)
 			{
-				connectionAddresses.push_back(nullptr);
-				continue;
-			}
-
-			GUID adapterId;
-			hr = adapter->get_NetworkAdapterId(&adapterId);
-			if (FAILED(hr))
-			{
-				connectionAddresses.push_back(nullptr);
-				continue;
-			}
-
-			connectionAddresses.push_back(m_NetworkAdapterAddresses[adapterId].Get());
-		}
-
-		// Sort profiles by address. Since connection profiles size is usually very small (up to 4 connections), do a "naive" sort
-		for (size_t i = 0; i < m_ConnectionProfiles.size() - 1; i++)
-		{
-			for (size_t j = i + 1; j < m_ConnectionProfiles.size(); j++)
-			{
-				int32_t comparison = connectionAddresses[i] == nullptr ? -1 : (connectionAddresses[j] == nullptr ? 1 : 0);
-
-				if (comparison == 0 && FAILED(WindowsCompareStringOrdinal(connectionAddresses[i], connectionAddresses[j], &comparison)))
-					continue;
-
-				if (comparison > 0)
+				WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter> adapter;
+				hr = profile->get_NetworkAdapter(&adapter);
+				if (FAILED(hr))
 				{
-					std::swap(m_ConnectionProfiles[i], m_ConnectionProfiles[j]);
-					std::swap(connectionAddresses[i], connectionAddresses[j]);
+					connectionAddresses.push_back(nullptr);
+					continue;
+				}
+
+				GUID adapterId;
+				hr = adapter->get_NetworkAdapterId(&adapterId);
+				if (FAILED(hr))
+				{
+					connectionAddresses.push_back(nullptr);
+					continue;
+				}
+
+				connectionAddresses.push_back(m_NetworkAdapterAddresses[adapterId].Get());
+			}
+
+			// Sort profiles by address. Since connection profiles size is usually very small (up to 4 connections), do a "naive" sort
+			for (size_t i = 0; i < m_ConnectionProfiles.size() - 1; i++)
+			{
+				for (size_t j = i + 1; j < m_ConnectionProfiles.size(); j++)
+				{
+					int32_t comparison = connectionAddresses[i] == nullptr ? -1 : (connectionAddresses[j] == nullptr ? 1 : 0);
+
+					if (comparison == 0 && FAILED(WindowsCompareStringOrdinal(connectionAddresses[i], connectionAddresses[j], &comparison)))
+						continue;
+
+					if (comparison > 0)
+					{
+						std::swap(m_ConnectionProfiles[i], m_ConnectionProfiles[j]);
+						std::swap(connectionAddresses[i], connectionAddresses[j]);
+					}
 				}
 			}
-		}
 
-		std::vector<ConnectionProperties> connectionProperties;
-		connectionProperties.reserve(m_ConnectionProfiles.size());	
+			connectionProperties.reserve(m_ConnectionProfiles.size());
 
-		for (size_t i = 0; i < m_ConnectionProfiles.size(); i++)
-		{
-			if (connectionAddresses[i] == nullptr)
-				continue;
+			for (size_t i = 0; i < m_ConnectionProfiles.size(); i++)
+			{
+				if (connectionAddresses[i] == nullptr)
+					continue;
 
-			ConnectionProperties properties;
-			hr = IPInformation::FillConnectionProfileInformation(connectionAddresses[i], m_ConnectionProfiles[i].Get(), properties);
-			ContinueIfFailed(hr);
+				ConnectionProperties properties;
+				hr = IPInformation::FillConnectionProfileInformation(connectionAddresses[i], m_ConnectionProfiles[i].Get(), properties);
+				ContinueIfFailed(hr);
 
-			connectionProperties.push_back(std::move(properties));
+				connectionProperties.push_back(std::move(properties));
+			}
 		}
 
 		hr = m_Callback(connectionProperties);
