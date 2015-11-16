@@ -1,5 +1,6 @@
 #pragma once
 
+#include "HandleHolder.h"
 #include "TemplateHelpers\ArgumentTraits.h"
 
 namespace Utilities
@@ -18,11 +19,10 @@ public:
 private:
 	HRESULT m_Hr;
 	ResultType m_Result;
-	HANDLE m_Event;
+	HandleHolder m_Event;
 	
 	~SynchronousOperation()
 	{
-		CloseHandle(m_Event);
 	}
 
 	virtual HRESULT STDMETHODCALLTYPE Invoke(ABI::Windows::Foundation::IAsyncOperation<T>* asyncOperation, ABI::Windows::Foundation::AsyncStatus status) override
@@ -50,6 +50,7 @@ public:
 	SynchronousOperation()
 	{
 		m_Event = CreateEventExW(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+		Assert(m_Event != INVALID_HANDLE_VALUE);
 	}
 
 	static inline HRESULT Perform(ABI::Windows::Foundation::IAsyncOperation<T>* asyncOperation, ResultType* result)

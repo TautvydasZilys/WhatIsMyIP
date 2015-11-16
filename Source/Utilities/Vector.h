@@ -40,7 +40,7 @@ private:
 		int32_t comparison;
 		auto hr = WindowsCompareStringOrdinal(left, right, &comparison);
 		Assert(SUCCEEDED(hr));
-		return comparison == 0;
+		return SUCCEEDED(hr) && comparison == 0;
 	}
 
 	inline void ClearInternal()
