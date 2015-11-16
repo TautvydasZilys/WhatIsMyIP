@@ -159,7 +159,5 @@ HRESULT UI::VisualObjects::GetMonospaceFont(ABI::Windows::UI::Xaml::Media::IFont
 	hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.Xaml.Media.FontFamily").Get(), &fontFactory);
 	ReturnIfFailed(hr);
 
-	WRL::ComPtr<IInspectable> outer;
-	WRL::ComPtr<IInspectable> inner;
-	return fontFactory->CreateInstanceWithName(WRL::HStringReference(chosenFontName.c_str()).Get(), nullptr, &inner, outFont);
+	return fontFactory->CreateInstanceWithName(WRL::HStringReference(chosenFontName.c_str()).Get(), nullptr, nullptr, outFont);
 }
