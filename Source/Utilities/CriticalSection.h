@@ -7,6 +7,18 @@ class CriticalSection
 {
 	CRITICAL_SECTION m_CriticalSection;
 
+	friend class Lock;
+
+	inline void Enter()
+	{
+		EnterCriticalSection(&m_CriticalSection);
+	}
+
+	inline void Leave()
+	{
+		LeaveCriticalSection(&m_CriticalSection);
+	}
+
 public:
 	inline CriticalSection()
 	{
@@ -19,16 +31,6 @@ public:
 	inline ~CriticalSection()
 	{
 		DeleteCriticalSection(&m_CriticalSection);
-	}
-
-	inline void Enter()
-	{
-		EnterCriticalSection(&m_CriticalSection);
-	}
-
-	inline void Leave()
-	{
-		LeaveCriticalSection(&m_CriticalSection);
 	}
 
 	class Lock
