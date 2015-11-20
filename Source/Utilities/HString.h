@@ -32,7 +32,7 @@ public:
 
 	inline HString(const wchar_t* str)
 	{
-		auto hr = WindowsCreateString(str, wcslen(str), &m_String);
+		auto hr = WindowsCreateString(str, static_cast<uint32_t>(wcslen(str)), &m_String);
 		Assert(SUCCEEDED(hr));
 	}
 
@@ -133,7 +133,7 @@ private:
 public:
 	inline HStringReference(const wchar_t* str)
 	{
-		auto hr = WindowsCreateStringReference(str, wcslen(str), &m_Header, &m_String);
+		auto hr = WindowsCreateStringReference(str, static_cast<uint32_t>(wcslen(str)), &m_Header, &m_String);
 		Assert(SUCCEEDED(hr));
 	}
 

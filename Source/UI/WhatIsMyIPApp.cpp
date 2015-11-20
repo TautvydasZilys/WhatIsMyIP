@@ -450,7 +450,7 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 		}
 
 		auto str = textStream.str();
-		Utilities::HString text(str.c_str(), str.length());
+		Utilities::HString text(str.c_str(), static_cast<uint32_t>(str.length()));
 
 		auto hr = _this->ExecuteOnUIThread([_this, text]() -> HRESULT
 		{
