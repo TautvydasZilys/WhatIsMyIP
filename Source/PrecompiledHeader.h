@@ -15,6 +15,8 @@
 #undef min
 #undef max
 
+#include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <iomanip>
 #include <map>
@@ -26,7 +28,6 @@
 namespace WRL
 {
 	using namespace Microsoft::WRL;
-	using namespace Microsoft::WRL::Wrappers;
 }
 
 #if _DEBUG
@@ -38,6 +39,10 @@ namespace WRL
 #define DoIfFailed(hr, action) do { Assert(SUCCEEDED(hr)); if (FAILED(hr)) { action; } } while (false)
 #define ContinueIfFailed(hr) DoIfFailed(hr, continue)
 #define ReturnIfFailed(hr) DoIfFailed(hr, return hr)
+#define ReturnSuccessIfFailed(hr) DoIfFailed(hr, return S_OK)
+#define AdvanceFenceAndContinueIfFailed(hr, fence) DoIfFailed(hr, fence.Advance(); continue)
+#define AdvanceFenceAndReturnIfFailed(hr, fence) DoIfFailed(hr, fence.Advance(); return hr)
+#define AdvanceFenceAndReturnSuccessIfFailed(hr, fence) DoIfFailed(hr, fence.Advance(); return S_OK)
 
 #ifndef WINDOWS_8_1
 #define WINDOWS_8_1 0

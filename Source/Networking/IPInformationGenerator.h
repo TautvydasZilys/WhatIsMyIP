@@ -1,8 +1,10 @@
 #pragma once
 
+#include "ConnectionProfileInformation.h"
 #include "ConnectionProperties.h"
 #include "IPInformation.h"
 #include "Utilities\CriticalSection.h"
+#include "Utilities\HString.h"
 
 inline bool operator<(const GUID& left, const GUID& right)
 {
@@ -22,14 +24,14 @@ class IPInformationGenerator :
 private:
 	CallbackType m_Callback;
 
-	std::vector<WRL::ComPtr<ABI::Windows::Networking::Connectivity::IConnectionProfile>> m_ConnectionProfiles;
-	std::map<GUID, WRL::HString> m_NetworkAdapterAddresses;
+	std::vector<ConnectionProfileInformation> m_ConnectionsInformation;
+	std::map<GUID, Utilities::HString> m_NetworkAdapterAddresses;
 	Utilities::CriticalSection m_ConnectionProfilesCriticalSection;
 
 	uint32_t m_PendingAsyncOperationCount;
 	bool m_Started;
 
-	inline void FillNetworkAdapterAddresses(const std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, WRL::HString>>& adapterInfos)
+	inline void FillNetworkAdapterAddresses(const std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, Utilities::HString>>& adapterInfos)
 	{
 		for (auto& adapterInfo : adapterInfos)
 		{
@@ -37,15 +39,11 @@ private:
 			auto hr = adapterInfo.first->get_NetworkAdapterId(&adapterId);
 			ContinueIfFailed(hr);
 
-			WRL::HString address;
-			hr = address.Set(adapterInfo.second.Get());
-			ContinueIfFailed(hr);
-
-			m_NetworkAdapterAddresses.emplace(adapterId, std::move(address));
+			m_NetworkAdapterAddresses.emplace(adapterId, adapterInfo.second);
 		}
 	}
 
-	inline void FireFindConnectionProfilesTasks(const std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, WRL::HString>>& adapterInfos)
+	inline void FireFindConnectionProfilesTasks(const std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, Utilities::HString>>& adapterInfos)
 	{
 		m_PendingAsyncOperationCount = static_cast<uint32_t>(adapterInfos.size());
 
@@ -76,69 +74,14 @@ private:
 
 	void CompleteOperation()
 	{
-		HRESULT hr;
-		std::vector<ConnectionProperties> connectionProperties;
+		std::vector<ConnectionProperties> connectionProperties(m_ConnectionsInformation.size());
 
-		if (m_ConnectionProfiles.size() > 0)
-		{
-			std::vector<HSTRING> connectionAddresses;
-			connectionAddresses.reserve(m_ConnectionProfiles.size());
+		for (size_t i = 0; i < m_ConnectionsInformation.size(); i++)
+			IPInformation::ConvertConnectionProfileInformationToConnectionProperties(m_ConnectionsInformation[i], connectionProperties[i]);
 
-			for (const auto& profile : m_ConnectionProfiles)
-			{
-				WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter> adapter;
-				hr = profile->get_NetworkAdapter(&adapter);
-				if (FAILED(hr))
-				{
-					connectionAddresses.push_back(nullptr);
-					continue;
-				}
+		std::sort(connectionProperties.begin(), connectionProperties.end(), [](const ConnectionProperties& left, const ConnectionProperties& right) { return left.name < right.name; });
 
-				GUID adapterId;
-				hr = adapter->get_NetworkAdapterId(&adapterId);
-				if (FAILED(hr))
-				{
-					connectionAddresses.push_back(nullptr);
-					continue;
-				}
-
-				connectionAddresses.push_back(m_NetworkAdapterAddresses[adapterId].Get());
-			}
-
-			// Sort profiles by address. Since connection profiles size is usually very small (up to 4 connections), do a "naive" sort
-			for (size_t i = 0; i < m_ConnectionProfiles.size() - 1; i++)
-			{
-				for (size_t j = i + 1; j < m_ConnectionProfiles.size(); j++)
-				{
-					int32_t comparison = connectionAddresses[i] == nullptr ? -1 : (connectionAddresses[j] == nullptr ? 1 : 0);
-
-					if (comparison == 0 && FAILED(WindowsCompareStringOrdinal(connectionAddresses[i], connectionAddresses[j], &comparison)))
-						continue;
-
-					if (comparison > 0)
-					{
-						std::swap(m_ConnectionProfiles[i], m_ConnectionProfiles[j]);
-						std::swap(connectionAddresses[i], connectionAddresses[j]);
-					}
-				}
-			}
-
-			connectionProperties.reserve(m_ConnectionProfiles.size());
-
-			for (size_t i = 0; i < m_ConnectionProfiles.size(); i++)
-			{
-				if (connectionAddresses[i] == nullptr)
-					continue;
-
-				ConnectionProperties properties;
-				hr = IPInformation::FillConnectionProfileInformation(connectionAddresses[i], m_ConnectionProfiles[i].Get(), properties);
-				ContinueIfFailed(hr);
-
-				connectionProperties.push_back(std::move(properties));
-			}
-		}
-
-		hr = m_Callback(connectionProperties);
+		auto hr = m_Callback(connectionProperties);
 		Assert(SUCCEEDED(hr));
 	}
 
@@ -148,6 +91,21 @@ private:
 
 		if (newCount == 0)
 			CompleteOperation();
+	}
+
+	inline HSTRING GetConnectionProfileAddress(ABI::Windows::Networking::Connectivity::IConnectionProfile* profile)
+	{
+		WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter> adapter;
+		auto hr = profile->get_NetworkAdapter(&adapter);
+		if (FAILED(hr))
+			return nullptr;
+
+		GUID adapterId;
+		hr = adapter->get_NetworkAdapterId(&adapterId);
+		if (FAILED(hr))
+			return nullptr;
+
+		return m_NetworkAdapterAddresses[adapterId];
 	}
 
 public:
@@ -165,7 +123,7 @@ public:
 
 		m_Started = true;
 
-		std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, WRL::HString>> adapters;
+		std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, Utilities::HString>> adapters;
 		auto hr = IPInformation::GetAllNetworkAdapters(&adapters);
 		ReturnIfFailed(hr);
 
@@ -184,8 +142,12 @@ public:
 
 			if (SUCCEEDED(hr) && connectionProfile != nullptr)
 			{
+				ConnectionProfileInformation connectionInfo;
+				auto connectionProfileAddress = GetConnectionProfileAddress(connectionProfile.Get());
+				IPInformation::FillConnectionProfileInformation(connectionProfileAddress, connectionProfile.Get(), &connectionInfo);
+
 				Utilities::CriticalSection::Lock lock(m_ConnectionProfilesCriticalSection);
-				m_ConnectionProfiles.push_back(std::move(connectionProfile));
+				m_ConnectionsInformation.push_back(std::move(connectionInfo));
 			}
 		}
 

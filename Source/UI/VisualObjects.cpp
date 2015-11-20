@@ -1,4 +1,5 @@
 #include "PrecompiledHeader.h"
+#include "Utilities\HString.h"
 #include "VisualObjects.h"
 
 using namespace ABI::Windows::UI;
@@ -7,7 +8,7 @@ using namespace ABI::Windows::UI::Xaml::Media;
 HRESULT UI::VisualObjects::GetBrushFromColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a, IBrush** outBrush)
 {
 	WRL::ComPtr<ISolidColorBrushFactory> brushFactory;
-	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.Xaml.Media.SolidColorBrush").Get(), &brushFactory);
+	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.UI.Xaml.Media.SolidColorBrush"), &brushFactory);
 	ReturnIfFailed(hr);
 
 	Color color = { r, g, b, a };
@@ -156,8 +157,8 @@ HRESULT UI::VisualObjects::GetMonospaceFont(ABI::Windows::UI::Xaml::Media::IFont
 		return hr;
 
 	WRL::ComPtr<IFontFamilyFactory> fontFactory;
-	hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.Xaml.Media.FontFamily").Get(), &fontFactory);
+	hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.UI.Xaml.Media.FontFamily"), &fontFactory);
 	ReturnIfFailed(hr);
 
-	return fontFactory->CreateInstanceWithName(WRL::HStringReference(chosenFontName.c_str()).Get(), nullptr, nullptr, outFont);
+	return fontFactory->CreateInstanceWithName(Utilities::HStringReference(chosenFontName.c_str()), nullptr, nullptr, outFont);
 }

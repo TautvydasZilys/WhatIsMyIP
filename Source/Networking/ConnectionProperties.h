@@ -21,10 +21,11 @@ struct ConnectionProperties
 	{		
 	}
 
-	ConnectionProperties& operator=(ConnectionProperties&& other)
+	inline ConnectionProperties& operator=(ConnectionProperties&& other)
 	{
 		name = std::move(other.name);
 		properties = std::move(other.properties);
+		return *this;
 	}	
 };
 

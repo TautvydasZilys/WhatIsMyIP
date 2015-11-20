@@ -1,7 +1,9 @@
 #include "PrecompiledHeader.h"
+#include "ConnectionProfileInformation.h"
 #include "ConnectionProperties.h"
 #include "IPInformation.h"
 #include "NetworkEnumNames.h"
+#include "PlugNPlay\PlugNPlayObjectRegistry.h"
 #include "Utilities\EventHandler.h"
 #include "Utilities\SynchronousOperation.h"
 #include "Utilities\Vector.h"
@@ -15,62 +17,11 @@ using namespace ABI::Windows::Networking::Connectivity;
 using namespace Networking;
 using namespace Networking::IPInformation;
 
-struct ConnectionProfileInformation
-{
-	WRL::HString name;
-	WRL::HString address;
-	NetworkConnectivityLevel connectivityLevel;
-
-	NetworkCostType networkCostType;
-	boolean isRoaming;
-
-	uint32_t megabytesUsed;
-	uint32_t megabytesLimit;
-	bool hasLimit;
-
-	NetworkAuthenticationType authenticationType;
-	NetworkEncryptionType encryptionType;
-
-	uint32_t interfaceType;
-	NetworkTypes networkType;
-
-	bool hasSignalStrength;
-	uint8_t signalStrength;
-
-	boolean isWWanConnection;
-	WRL::HString wwanHomeProviderId;
-	WRL::HString wwanAccessPointName;
-	WwanNetworkRegistrationState wwanNetworkRegistrationState;
-	WwanDataClass wwanDataClass;
-
-	boolean isWLanConnection;
-	WRL::HString wlanSSID;
-};
-
 static HRESULT GetDefaultNetworkAdapterName(HSTRING* outName)
 {
 	const wchar_t kDefaultName[] = L"Unknown Network Adapter";
 	return WindowsCreateString(kDefaultName, ARRAYSIZE(kDefaultName) - 1, outName);
 }
-
-static inline HRESULT UnboxString(IInspectable* boxed, HSTRING* outUnboxed)
-{
-	if (boxed == nullptr)
-	{
-		*outUnboxed = nullptr;
-		return S_OK;
-	}
-
-	WRL::ComPtr<IPropertyValue> propertyValue;
-	auto hr = boxed->QueryInterface(__uuidof(IPropertyValue), &propertyValue);
-	ReturnIfFailed(hr);
-
-	return propertyValue->GetString(outUnboxed);
-}
-
-const wchar_t kDEVPKEY_Device_InstanceId[] = L"{78c34fc8-104a-4aca-9ea4-524d52996e57} 256";
-const wchar_t kDEVPKEY_Device_DeviceDesc[] = L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 2";
-const wchar_t kDEVPKEY_Device_FriendlyName[] = L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 14";
 
 static HRESULT GetNetworkAdapterName(INetworkAdapter* networkAdapter, HSTRING* outName)
 {
@@ -83,99 +34,19 @@ static HRESULT GetNetworkAdapterName(INetworkAdapter* networkAdapter, HSTRING* o
 	auto adapterIdStrLength = StringFromGUID2(adapterId, adapterIdStr, kBufferLength);
 	Assert(adapterIdStrLength != 0);
 	
-	WRL::ComPtr<IPnpObjectStatics> pnpObjectStatics;
-	hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.Devices.Enumeration.Pnp.PnpObject").Get(), &pnpObjectStatics);
-	ReturnIfFailed(hr);
-
-	auto interfaceInstanceIdProperties = WRL::Make<Utilities::Vector<HSTRING>>();
-	interfaceInstanceIdProperties->Append(WRL::HStringReference(kDEVPKEY_Device_InstanceId).Get());
-
-	WRL::ComPtr<IAsyncOperation<PnpObjectCollection*>> findPnpObjectsOperation;
-	hr = pnpObjectStatics->FindAllAsync(PnpObjectType_DeviceInterface, interfaceInstanceIdProperties.Get(), &findPnpObjectsOperation);
-	ReturnIfFailed(hr);
-
-	WRL::ComPtr<IVectorView<PnpObject*>> pnpObjects;
-	hr = Utilities::PerformSynchronousOperation(findPnpObjectsOperation.Get(), &pnpObjects);
-	ReturnIfFailed(hr);
-
-	uint32_t pnpObjectCount;
-	hr = pnpObjects->get_Size(&pnpObjectCount);
-	ReturnIfFailed(hr);
-
-	WRL::HString networkAdapterDeviceId;
-
-	for (uint32_t i = 0; i < pnpObjectCount; i++)
-	{
-		WRL::ComPtr<IPnpObject> pnpObject;
-		hr = pnpObjects->GetAt(i, &pnpObject);
-		ContinueIfFailed(hr);
-
-		WRL::HString objectId;
-		hr = pnpObject->get_Id(objectId.GetAddressOf());
-		ContinueIfFailed(hr);
-
-		uint32_t idLength;
-		auto objectIdCharacters = objectId.GetRawBuffer(&idLength);
-		
-		if (wcsstr(objectIdCharacters, adapterIdStr) != nullptr)
-		{
-			WRL::ComPtr<IMapView<HSTRING, IInspectable*>> objectProperties;
-			hr = pnpObject->get_Properties(&objectProperties);
-			ContinueIfFailed(hr);
-
-			WRL::ComPtr<IInspectable> instanceIdInspectable;
-			hr = objectProperties->Lookup(WRL::HStringReference(L"System.Devices.DeviceInstanceId").Get(), &instanceIdInspectable);
-			ContinueIfFailed(hr);
-			
-			hr = UnboxString(instanceIdInspectable.Get(), networkAdapterDeviceId.GetAddressOf());
-			ContinueIfFailed(hr);
-
-			if (networkAdapterDeviceId != nullptr)
-				break;
-		}
-	}
-
-	if (networkAdapterDeviceId == nullptr)
-		return GetDefaultNetworkAdapterName(outName);
-
-	auto adapterNameProperties = WRL::Make<Utilities::Vector<HSTRING>>();
-	adapterNameProperties->Append(WRL::HStringReference(kDEVPKEY_Device_FriendlyName).Get());
-	adapterNameProperties->Append(WRL::HStringReference(kDEVPKEY_Device_DeviceDesc).Get()); // Fallback in case friendly name is not available
-
-	WRL::ComPtr<IAsyncOperation<PnpObject*>> getAdapterObjectOperation;
-	hr = pnpObjectStatics->CreateFromIdAsync(PnpObjectType_Device, networkAdapterDeviceId.Get(), adapterNameProperties.Get(), &getAdapterObjectOperation);
-	ReturnIfFailed(hr);
-
-	WRL::ComPtr<IPnpObject> adapterObject;
-	hr = Utilities::PerformSynchronousOperation(getAdapterObjectOperation.Get(), &adapterObject);
+	hr = PlugNPlay::PlugNPlayObjectRegistry::Lookup(adapterIdStr, outName);
 
 	if (FAILED(hr))
 		return GetDefaultNetworkAdapterName(outName);
 
-	WRL::ComPtr<IMapView<HSTRING, IInspectable*>> adapterProperties;
-	hr = adapterObject->get_Properties(&adapterProperties);
-	ReturnIfFailed(hr);
-
-	WRL::ComPtr<IInspectable> nameInspectable;
-	hr = adapterProperties->Lookup(WRL::HStringReference(kDEVPKEY_Device_FriendlyName).Get(), &nameInspectable);
-
-	if (FAILED(hr) || nameInspectable == nullptr)
-	{
-		hr = adapterProperties->Lookup(WRL::HStringReference(kDEVPKEY_Device_DeviceDesc).Get(), &nameInspectable);
-
-		if (FAILED(hr) || nameInspectable == nullptr)
-			return GetDefaultNetworkAdapterName(outName);
-	}
-
-	return UnboxString(nameInspectable.Get(), outName);
+	return S_OK;
 }
 
-static HRESULT GatherProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, ConnectionProfileInformation* profileInfo)
+HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, ConnectionProfileInformation* profileInfo)
 {
-	auto hr = profileInfo->address.Set(address);
-	ReturnIfFailed(hr);
+	profileInfo->address = address;
 
-	hr = connectionProfile->GetNetworkConnectivityLevel(&profileInfo->connectivityLevel);
+	auto hr = connectionProfile->GetNetworkConnectivityLevel(&profileInfo->connectivityLevel);
 	ReturnIfFailed(hr);
 
 	// ConnectionCost
@@ -241,7 +112,7 @@ static HRESULT GatherProfileInformation(HSTRING address, IConnectionProfile* con
 		hr = connectionProfile->get_NetworkAdapter(&networkAdapter);
 		ReturnIfFailed(hr);
 
-		hr = GetNetworkAdapterName(networkAdapter.Get(), profileInfo->name.GetAddressOf());
+		hr = GetNetworkAdapterName(networkAdapter.Get(), &profileInfo->name);
 		ReturnIfFailed(hr);
 
 		hr = networkAdapter->get_IanaInterfaceType(&profileInfo->interfaceType);
@@ -272,10 +143,10 @@ static HRESULT GatherProfileInformation(HSTRING address, IConnectionProfile* con
 		hr = connectionProfile2->get_WwanConnectionProfileDetails(&wwanConnectionDetails);
 		ReturnIfFailed(hr);
 
-		hr = wwanConnectionDetails->get_HomeProviderId(profileInfo->wwanHomeProviderId.GetAddressOf());
+		hr = wwanConnectionDetails->get_HomeProviderId(&profileInfo->wwanHomeProviderId);
 		ReturnIfFailed(hr);
 
-		hr = wwanConnectionDetails->get_AccessPointName(profileInfo->wwanAccessPointName.GetAddressOf());
+		hr = wwanConnectionDetails->get_AccessPointName(&profileInfo->wwanAccessPointName);
 		ReturnIfFailed(hr);
 
 		hr = wwanConnectionDetails->GetNetworkRegistrationState(&profileInfo->wwanNetworkRegistrationState);
@@ -291,7 +162,7 @@ static HRESULT GatherProfileInformation(HSTRING address, IConnectionProfile* con
 		hr = connectionProfile2->get_WlanConnectionProfileDetails(&wlanConnectionDetails);
 		ReturnIfFailed(hr);
 
-		hr = wlanConnectionDetails->GetConnectedSsid(profileInfo->wlanSSID.GetAddressOf());
+		hr = wlanConnectionDetails->GetConnectedSsid(&profileInfo->wlanSSID);
 		ReturnIfFailed(hr);
 	}
 
@@ -315,7 +186,7 @@ static HRESULT GatherProfileInformation(HSTRING address, IConnectionProfile* con
 	return S_OK;
 }
 
-static void ConvertConnectionProfileInformationToConnectionProperties(const ConnectionProfileInformation& profileInfo, ConnectionProperties& connectionProperties)
+void Networking::IPInformation::ConvertConnectionProfileInformationToConnectionProperties(const ConnectionProfileInformation& profileInfo, ConnectionProperties& connectionProperties)
 {
 	uint32_t length;
 	auto& properties = connectionProperties.properties;
@@ -357,12 +228,12 @@ static void ConvertConnectionProfileInformationToConnectionProperties(const Conn
 	}
 }
 
-HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<WRL::ComPtr<INetworkAdapter>, WRL::HString>>* networkAdapters)
+HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<WRL::ComPtr<INetworkAdapter>, Utilities::HString>>* networkAdapters)
 {
 	HRESULT hr;
 
 	WRL::ComPtr<INetworkInformationStatics> networkInformation;
-	hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation").Get(), &networkInformation);
+	hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation"), &networkInformation);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IVectorView<HostName*>> hostNames;
@@ -386,8 +257,8 @@ HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<W
 		if (ipInformation == nullptr)
 			continue;
 
-		WRL::HString address;
-		hr = hostName->get_CanonicalName(address.GetAddressOf());
+		Utilities::HString address;
+		hr = hostName->get_CanonicalName(&address);
 		ContinueIfFailed(hr);
 
 		WRL::ComPtr<INetworkAdapter> networkAdapter;
@@ -400,21 +271,10 @@ HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<W
 	return S_OK;
 }
 
-HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, ConnectionProperties& connectionProperties)
-{
-	ConnectionProfileInformation profileInfo;
-	ZeroMemory(&profileInfo, sizeof(profileInfo));
-	auto hr = GatherProfileInformation(address, connectionProfile, &profileInfo);
-	ReturnIfFailed(hr);
-
-	ConvertConnectionProfileInformationToConnectionProperties(profileInfo, connectionProperties);
-	return S_OK;
-}
-
 HRESULT Networking::IPInformation::SubscribeToOnNetworkStatusChanged(ABI::Windows::Networking::Connectivity::INetworkStatusChangedEventHandler* eventHandler, EventRegistrationToken* eventToken)
 {
 	WRL::ComPtr<INetworkInformationStatics> networkInformation;
-	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation").Get(), &networkInformation);
+	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation"), &networkInformation);
 	ReturnIfFailed(hr);
 
 	return networkInformation->add_NetworkStatusChanged(eventHandler, eventToken);
@@ -423,7 +283,7 @@ HRESULT Networking::IPInformation::SubscribeToOnNetworkStatusChanged(ABI::Window
 HRESULT Networking::IPInformation::UnsubscribeFromOnNetworkStatusChanged(EventRegistrationToken eventToken)
 {
 	WRL::ComPtr<INetworkInformationStatics> networkInformation;
-	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation").Get(), &networkInformation);
+	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation"), &networkInformation);
 	ReturnIfFailed(hr);
 
 	return networkInformation->remove_NetworkStatusChanged(eventToken);

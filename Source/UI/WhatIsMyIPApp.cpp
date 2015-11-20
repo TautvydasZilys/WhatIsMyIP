@@ -1,6 +1,7 @@
 #include "PrecompiledHeader.h"
 #include "Networking\ConnectionProperties.h"
 #include "Networking\IPInformationGenerator.h"
+#include "PlugNPlay\PlugNPlayObjectRegistry.h"
 #include "Utilities\EventHandler.h"
 #include "VisualObjects.h"
 #include "WhatIsMyIPApp.h"
@@ -41,13 +42,14 @@ void WhatIsMyIPApp::Cleanup()
 		Assert(SUCCEEDED(hr));
 	}
 
+	PlugNPlay::PlugNPlayObjectRegistry::Destroy();
 	XamlApplication::Cleanup();
 }
 
 HRESULT WhatIsMyIPApp::CreatePage(IUIElement** outPage)
 {
 	WRL::ComPtr<IPage> page;
-	HRESULT hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.Page").Get(), &page);
+	HRESULT hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.Page"), &page);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IUIElement> grid;
@@ -74,7 +76,7 @@ HRESULT WhatIsMyIPApp::CreatePage(IUIElement** outPage)
 static inline HRESULT AddGridRow(IVector<RowDefinition*>* rows, double height, GridUnitType unitType)
 {
 	WRL::ComPtr<IRowDefinition> row;
-	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.RowDefinition").Get(), &row);
+	auto hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.RowDefinition"), &row);
 	ReturnIfFailed(hr);
 
 	GridLength rowHeight = { height, unitType };
@@ -96,11 +98,11 @@ static inline HRESULT SetGridRow(IGridStatics* gridStatics, IUIElement* child, i
 HRESULT WhatIsMyIPApp::CreateRootGrid(IUIElement** outGrid)
 {
 	WRL::ComPtr<IGridStatics> gridStatics;
-	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.Xaml.Controls.Grid").Get(), &gridStatics);
+	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.Grid"), &gridStatics);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IGrid> grid;
-	hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.Grid").Get(), &grid);
+	hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.Grid"), &grid);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IPanel> gridPanel;
@@ -169,7 +171,7 @@ HRESULT WhatIsMyIPApp::CreateRootGrid(IUIElement** outGrid)
 static inline HRESULT CreateScrollViewerWithContent(IInspectable* content, IScrollViewer** outScrollViewer)
 {
 	WRL::ComPtr<IScrollViewer> scrollViewer;
-	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.ScrollViewer").Get(), &scrollViewer);
+	auto hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.ScrollViewer"), &scrollViewer);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IContentControl> scrollViewerContentControl;
@@ -202,7 +204,7 @@ HRESULT WhatIsMyIPApp::CreateScrollViewerForTextBlock(IUIElement** outScrollView
 HRESULT WhatIsMyIPApp::CreateProgressBar(IUIElement** outProgressBar)
 {
 	WRL::ComPtr<IProgressBar> progressBar;
-	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.ProgressBar").Get(), &progressBar);
+	auto hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.ProgressBar"), &progressBar);
 	ReturnIfFailed(hr);
 
 	hr = progressBar->put_IsIndeterminate(true);
@@ -232,7 +234,7 @@ HRESULT WhatIsMyIPApp::CreateProgressBar(IUIElement** outProgressBar)
 HRESULT WhatIsMyIPApp::CreateIPInformationTextBlock(ITextBlock** outTextBlock)
 {
 	WRL::ComPtr<ITextBlock> textBlock;
-	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.TextBlock").Get(), &textBlock);
+	auto hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.TextBlock"), &textBlock);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IBrush> textBrush;
@@ -261,7 +263,7 @@ HRESULT WhatIsMyIPApp::CreateIPInformationTextBlock(ITextBlock** outTextBlock)
 HRESULT WhatIsMyIPApp::CreateBottomAppBar(IAppBar** outAppBar)
 {
 	WRL::ComPtr<IAppBar> appBar;
-	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.AppBar").Get(), &appBar);
+	auto hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.AppBar"), &appBar);
 	if (SUCCEEDED(hr))
 	{
 		// This path fails on WP8.1... AppBar creation fails with ERROR_NOT_SUPPORTED
@@ -278,7 +280,7 @@ HRESULT WhatIsMyIPApp::CreateBottomAppBar(IAppBar** outAppBar)
 	}
 	else
 	{
-		hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.CommandBar").Get(), &appBar);
+		hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.CommandBar"), &appBar);
 		ReturnIfFailed(hr);
 
 		WRL::ComPtr<ICommandBar> commandBar;
@@ -312,7 +314,7 @@ HRESULT WhatIsMyIPApp::CreateBottomAppBar(IAppBar** outAppBar)
 HRESULT WhatIsMyIPApp::CreateStackPanelForAppBar(IStackPanel** outStackPanel)
 {
 	WRL::ComPtr<IStackPanel> stackPanel;
-	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.StackPanel").Get(), &stackPanel);
+	auto hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.StackPanel"), &stackPanel);
 	ReturnIfFailed(hr);
 
 	hr = stackPanel->put_Orientation(Orientation_Horizontal);
@@ -340,14 +342,14 @@ HRESULT WhatIsMyIPApp::CreateStackPanelForAppBar(IStackPanel** outStackPanel)
 HRESULT WhatIsMyIPApp::CreateRefreshButtomForAppBar(IUIElement** outButton)
 {
 	WRL::ComPtr<IAppBarButton> button;
-	auto hr = Windows::Foundation::ActivateInstance(WRL::HStringReference(L"Windows.UI.Xaml.Controls.AppBarButton").Get(), &button);
+	auto hr = Windows::Foundation::ActivateInstance(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.AppBarButton"), &button);
 	ReturnIfFailed(hr);
 
-	hr = button->put_Label(WRL::HStringReference(L"Refresh").Get());
+	hr = button->put_Label(Utilities::HStringReference(L"Refresh"));
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<ISymbolIconFactory> symbolIconFactory;
-	hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.Xaml.Controls.SymbolIcon").Get(), &symbolIconFactory);
+	hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.UI.Xaml.Controls.SymbolIcon"), &symbolIconFactory);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<ISymbolIcon> symbolIcon;
@@ -378,7 +380,7 @@ HRESULT WhatIsMyIPApp::CreateRefreshButtomForAppBar(IUIElement** outButton)
 static HRESULT SetViewBoundsMode(ApplicationViewBoundsMode boundsMode)
 {
 	WRL::ComPtr<IApplicationViewStatics2> applicationViewStatics;
-	auto hr = Windows::Foundation::GetActivationFactory(WRL::HStringReference(L"Windows.UI.ViewManagement.ApplicationView").Get(), &applicationViewStatics);
+	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.UI.ViewManagement.ApplicationView"), &applicationViewStatics);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<IApplicationView> applicationView;
@@ -425,7 +427,6 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 	return Networking::GenerateIPInformationAsync([_this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
 	{
 		std::wstringstream textStream;
-		HSTRING text;
 
 		if (connectionProperties.size() > 0)
 		{
@@ -449,14 +450,10 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 		}
 
 		auto str = textStream.str();
-		auto hr = WindowsCreateString(str.c_str(), static_cast<uint32_t>(str.length()), &text);
-		ReturnIfFailed(hr);
+		Utilities::HString text(str.c_str(), str.length());
 
-		hr = _this->ExecuteOnUIThread([_this, text]() -> HRESULT
+		auto hr = _this->ExecuteOnUIThread([_this, text]() -> HRESULT
 		{
-			WRL::HString str;
-			str.Attach(text);
-
 			auto hr = _this->m_TextBlock->put_Text(text);
 			ReturnIfFailed(hr);
 
@@ -466,9 +463,6 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 
 			return S_OK;
 		});
-
-		if (FAILED(hr))
-			WindowsDeleteString(text);
 
 		return hr;
 	});
@@ -490,6 +484,9 @@ HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* a
 			return _this->RefreshIPInformationText();
 		});
 	}).Get(), &m_OnNetworkStatusChangedToken);
+
+	hr = PlugNPlay::PlugNPlayObjectRegistry::Create();
+	ReturnIfFailed(hr);
 
 	return XamlApplication::OnLaunched(args);
 }

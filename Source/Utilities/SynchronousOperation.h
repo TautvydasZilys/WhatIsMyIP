@@ -20,10 +20,6 @@ private:
 	HRESULT m_Hr;
 	ResultType m_Result;
 	HandleHolder m_Event;
-	
-	~SynchronousOperation()
-	{
-	}
 
 	virtual HRESULT STDMETHODCALLTYPE Invoke(ABI::Windows::Foundation::IAsyncOperation<T>* asyncOperation, ABI::Windows::Foundation::AsyncStatus status) override
 	{
