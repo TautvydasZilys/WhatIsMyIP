@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{3587B0F3-9CB8-43C2-B4D9-45CD31438D16}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>EtwProvider</RootNamespace>
+	<TargetName>EtwProvider</TargetName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(ProjectDir)..\..\build\bin\Tools\$(TargetName)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\build\obj\Tools\$(TargetName)\</IntDir>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <NoEntryPoint>true</NoEntryPoint>
+	</Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="EtwProvider.man">
+      <ExcludedFromBuild>false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command>mc.exe -um %(Filename)%(Extension) -z %(Filename)Generated -h &quot;$(ProjectDir)..\..\Source\Etw&quot; -r &quot;$(IntDir)\&quot; </Command>
+      <Message>Compiling ETW manifest</Message> 
+      <Outputs>$(ProjectDir)..\..\Source\Etw\%(Filename)Generated.h;$(IntDir)%(Filename)Generated.rc</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="$(IntDir)EtwProviderGenerated.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
