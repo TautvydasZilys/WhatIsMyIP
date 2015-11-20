@@ -1,5 +1,6 @@
 #include "PrecompiledHeader.h"
 
+#include "Etw\EtwInitializer.h"
 #include "UI\WhatIsMyIPApp.h"
 #include "Utilities\EventHandler.h"
 #include "Utilities\HString.h"
@@ -11,6 +12,9 @@ using namespace Utilities;
 
 int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	Etw::EtwInitializer etwInit;
+	Etw::EtwSingleEvent("Lifetime", "wWinMain startup");
+
 	RoInitializer roInit;
 
 	WRL::ComPtr<IApplicationStatics> applicationStatics;

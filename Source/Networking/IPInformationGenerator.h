@@ -2,6 +2,7 @@
 
 #include "ConnectionProfileInformation.h"
 #include "ConnectionProperties.h"
+#include "Etw\Etw.h"
 #include "IPInformation.h"
 #include "Utilities\CriticalSection.h"
 #include "Utilities\HString.h"
@@ -33,6 +34,8 @@ private:
 
 	inline void FillNetworkAdapterAddresses(const std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, Utilities::HString>>& adapterInfos)
 	{
+		Etw::EtwScopedEvent fillAdapterAddressesEvent("IPInformationGenerator", "Fill network adapter addresses");
+
 		for (auto& adapterInfo : adapterInfos)
 		{
 			GUID adapterId;
@@ -45,6 +48,7 @@ private:
 
 	inline void FireFindConnectionProfilesTasks(const std::vector<std::pair<WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter>, Utilities::HString>>& adapterInfos)
 	{
+		Etw::EtwScopedEvent fireTasksEvent("IPInformationGenerator", "Fire find connection profiles tasks");
 		m_PendingAsyncOperationCount = static_cast<uint32_t>(adapterInfos.size());
 
 		if (m_PendingAsyncOperationCount == 0)
@@ -95,6 +99,8 @@ private:
 
 	inline HSTRING GetConnectionProfileAddress(ABI::Windows::Networking::Connectivity::IConnectionProfile* profile)
 	{
+		Etw::EtwScopedEvent getAddressEvent("IPInformationGenerator", "Get IConnectionProfile address");
+
 		WRL::ComPtr<ABI::Windows::Networking::Connectivity::INetworkAdapter> adapter;
 		auto hr = profile->get_NetworkAdapter(&adapter);
 		if (FAILED(hr))

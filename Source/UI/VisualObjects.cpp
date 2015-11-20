@@ -1,4 +1,5 @@
 #include "PrecompiledHeader.h"
+#include "Etw\Etw.h"
 #include "Utilities\HString.h"
 #include "VisualObjects.h"
 
@@ -106,6 +107,7 @@ const std::initializer_list<wchar_t*> kFontPreferences =
 
 static HRESULT GetBestMonospaceFontName(std::wstring* chosenFontName)
 {
+	Etw::EtwScopedEvent getMonospaceFontName("VisualObjects", "Get monospace font name");
 	std::vector<std::wstring> monospaceFonts;
 
 	auto hr = EnumerateSystemFonts([&monospaceFonts](IDWriteFontFamily* fontFamily)
@@ -149,6 +151,7 @@ static HRESULT GetBestMonospaceFontName(std::wstring* chosenFontName)
 
 HRESULT UI::VisualObjects::GetMonospaceFont(ABI::Windows::UI::Xaml::Media::IFontFamily** outFont)
 {
+	Etw::EtwScopedEvent getMonospaceFontName("VisualObjects", "Get monospace font");
 	std::wstring chosenFontName;
 	auto hr = GetBestMonospaceFontName(&chosenFontName);
 	ReturnIfFailed(hr);

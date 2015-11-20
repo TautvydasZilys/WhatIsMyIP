@@ -1,4 +1,5 @@
 #include "PrecompiledHeader.h"
+#include "Etw\Etw.h"
 #include "Networking\ConnectionProperties.h"
 #include "Networking\IPInformationGenerator.h"
 #include "PlugNPlay\PlugNPlayObjectRegistry.h"
@@ -22,6 +23,8 @@ using namespace UI;
 WhatIsMyIPApp::WhatIsMyIPApp() :
 	m_ActiveRefreshTaskCount(0)
 {
+	Etw::EtwSingleEvent("Lifetime", "WhatIsMyIP app started");
+
 	m_OnNetworkStatusChangedToken.value = 0;
 	m_RefreshButtonClickedToken.value = 0;
 }
@@ -400,6 +403,7 @@ static HRESULT SetViewBoundsMode(ApplicationViewBoundsMode boundsMode)
 
 HRESULT WhatIsMyIPApp::CreateXamlLayout()
 {
+	Etw::EtwScopedEvent createXamlLayoutEvent("Lifetime", "CreateXamlLayout");
 	HRESULT hr;
 
 #if !WINDOWS_8_1
@@ -415,6 +419,8 @@ HRESULT WhatIsMyIPApp::CreateXamlLayout()
 
 HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 {
+	Etw::EtwRefCountedScopedEvent refreshIPInfoEvent("Lifetime", "Refresh ip information");
+
 	if (m_ActiveRefreshTaskCount == 0)
 	{
 		auto hr = m_ProgressBar->put_Visibility(Visibility_Visible);
@@ -424,7 +430,7 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 	m_ActiveRefreshTaskCount++;
 
 	WRL::ComPtr<WhatIsMyIPApp> _this = this;
-	return Networking::GenerateIPInformationAsync([_this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
+	return Networking::GenerateIPInformationAsync([_this, refreshIPInfoEvent](const std::vector<Networking::ConnectionProperties>& connectionProperties)
 	{
 		std::wstringstream textStream;
 
@@ -452,7 +458,7 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 		auto str = textStream.str();
 		Utilities::HString text(str.c_str(), static_cast<uint32_t>(str.length()));
 
-		auto hr = _this->ExecuteOnUIThread([_this, text]() -> HRESULT
+		auto hr = _this->ExecuteOnUIThread([_this, text, refreshIPInfoEvent]() -> HRESULT
 		{
 			auto hr = _this->m_TextBlock->put_Text(text);
 			ReturnIfFailed(hr);
@@ -470,6 +476,8 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 
 HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* args)
 {
+	Etw::EtwScopedEvent onLaunchedEvent("Lifetime", "OnLaunched");
+
 	auto hr = CreateXamlLayout();
 	ReturnIfFailed(hr);
 
@@ -493,6 +501,8 @@ HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* a
 
 HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnWindowActivated(IWindowActivatedEventArgs* e)
 {
+	Etw::EtwScopedEvent onWindowActivatedEvent("Lifetime", "OnWindowActivated");
+
 	CoreWindowActivationState windowActivationState;
 	HRESULT hr = e->get_WindowActivationState(&windowActivationState);
 	ReturnIfFailed(hr);

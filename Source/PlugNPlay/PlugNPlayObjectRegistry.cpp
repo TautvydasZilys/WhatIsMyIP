@@ -1,4 +1,5 @@
 #include "PrecompiledHeader.h"
+#include "Etw\Etw.h"
 #include "PlugNPlayObjectRegistry.h"
 #include "Utilities\EventHandler.h"
 #include "Utilities\Fence.h"
@@ -18,6 +19,8 @@ const wchar_t kDEVPKEY_Device_FriendlyName[] = L"{A45C254E-DF1C-4EFD-8020-67D146
 
 HRESULT PlugNPlayObjectRegistry::Create()
 {
+	Etw::EtwScopedEvent creationEvent("PlugNPlayObjectRegistry", "Create registry");
+
 	auto instance = WRL::Make<PlugNPlayObjectRegistry>();
 	
 	auto hr = instance->Initialize();
@@ -104,6 +107,8 @@ HRESULT PlugNPlayObjectRegistry::Initialize()
 
 void PlugNPlayObjectRegistry::Cleanup()
 {
+	Etw::EtwScopedEvent cleanupEvent("PlugNPlayObjectRegistry", "Cleanup registry");
+
 	HRESULT hr;
 
 	if (m_PnpObjectWatcher != nullptr)
@@ -148,6 +153,8 @@ void PlugNPlayObjectRegistry::Cleanup()
 
 HRESULT PlugNPlayObjectRegistry::Lookup(const wchar_t* interfaceInstanceIdSubstring, HSTRING* outName)
 {
+	Etw::EtwScopedEvent lookupEvent("PlugNPlayObjectRegistry", "Lookup interface instance id substring");
+
 	Assert(s_Instance != nullptr);
 	return s_Instance->LookupImpl(interfaceInstanceIdSubstring, outName);
 }
@@ -171,6 +178,8 @@ void PlugNPlayObjectRegistry::RebuildRegistry()
 {
 	Utilities::ReaderWriterLock::WriterLock registryLock(m_RegistryLock);
 	Utilities::CriticalSection::Lock objectLock(m_ObjectCriticalSection);
+
+	Etw::EtwScopedEvent rebuildEVent("PlugNPlayObjectRegistry", "Rebuild registry");
 
 	m_DirtyStatus = DirtyStatus::kNotDirty;
 
@@ -252,7 +261,10 @@ void PlugNPlayObjectRegistry::RebuildRegistry()
 		m_InterfaceInstanceIds.push_back(0);
 	}
 
-	allDevicesCreatedFence.Synchronize();
+	{
+		Etw::EtwScopedEvent waitForFenceEvent("PlugNPlayObjectRegistry", "Synchronize allDevicesCreatedFence");
+		allDevicesCreatedFence.Synchronize();
+	}
 }
 
 void PlugNPlayObjectRegistry::RebuildRegistryIfNeeded()

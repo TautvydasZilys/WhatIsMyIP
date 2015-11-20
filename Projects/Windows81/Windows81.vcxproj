@@ -65,7 +65,7 @@
       <PreprocessorDefinitions>WINDOWS_8_1=1;_UNICODE;UNICODE;%(PreprocessorDefinitions);</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalOptions>Dwrite.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>Dwrite.lib mincore.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

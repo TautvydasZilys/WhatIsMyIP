@@ -1,6 +1,7 @@
 #include "PrecompiledHeader.h"
 #include "ConnectionProfileInformation.h"
 #include "ConnectionProperties.h"
+#include "Etw\Etw.h"
 #include "IPInformation.h"
 #include "NetworkEnumNames.h"
 #include "PlugNPlay\PlugNPlayObjectRegistry.h"
@@ -44,6 +45,7 @@ static HRESULT GetNetworkAdapterName(INetworkAdapter* networkAdapter, HSTRING* o
 
 HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, ConnectionProfileInformation* profileInfo)
 {
+	Etw::EtwScopedEvent convertEvent("IPInformation", "Fill connection profile information");
 	profileInfo->address = address;
 
 	auto hr = connectionProfile->GetNetworkConnectivityLevel(&profileInfo->connectivityLevel);
@@ -106,26 +108,6 @@ HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING addr
 		ReturnIfFailed(hr);
 	}
 
-	// NetworkAdapter
-	{
-		WRL::ComPtr<INetworkAdapter> networkAdapter;
-		hr = connectionProfile->get_NetworkAdapter(&networkAdapter);
-		ReturnIfFailed(hr);
-
-		hr = GetNetworkAdapterName(networkAdapter.Get(), &profileInfo->name);
-		ReturnIfFailed(hr);
-
-		hr = networkAdapter->get_IanaInterfaceType(&profileInfo->interfaceType);
-		ReturnIfFailed(hr);
-
-		WRL::ComPtr<INetworkItem> networkItem;
-		hr = networkAdapter->get_NetworkItem(&networkItem);
-		ReturnIfFailed(hr);
-
-		hr = networkItem->GetNetworkTypes(&profileInfo->networkType);
-		ReturnIfFailed(hr);
-	}
-
 	// IConnectionProfile2
 	WRL::ComPtr<IConnectionProfile2> connectionProfile2;
 	hr = connectionProfile->QueryInterface(__uuidof(IConnectionProfile2), &connectionProfile2);
@@ -183,11 +165,33 @@ HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING addr
 		profileInfo->hasSignalStrength = false;
 	}
 
+	// NetworkAdapter
+	{
+		WRL::ComPtr<INetworkAdapter> networkAdapter;
+		hr = connectionProfile->get_NetworkAdapter(&networkAdapter);
+		ReturnIfFailed(hr);
+
+		hr = networkAdapter->get_IanaInterfaceType(&profileInfo->interfaceType);
+		ReturnIfFailed(hr);
+
+		WRL::ComPtr<INetworkItem> networkItem;
+		hr = networkAdapter->get_NetworkItem(&networkItem);
+		ReturnIfFailed(hr);
+
+		hr = networkItem->GetNetworkTypes(&profileInfo->networkType);
+		ReturnIfFailed(hr);
+
+		hr = GetNetworkAdapterName(networkAdapter.Get(), &profileInfo->name);
+		ReturnIfFailed(hr);
+	}
+
 	return S_OK;
 }
 
 void Networking::IPInformation::ConvertConnectionProfileInformationToConnectionProperties(const ConnectionProfileInformation& profileInfo, ConnectionProperties& connectionProperties)
 {
+	Etw::EtwScopedEvent convertEvent("IPInformation", "Convert connection profile information to connection properties");
+
 	uint32_t length;
 	auto& properties = connectionProperties.properties;
 
@@ -230,6 +234,7 @@ void Networking::IPInformation::ConvertConnectionProfileInformationToConnectionP
 
 HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<WRL::ComPtr<INetworkAdapter>, Utilities::HString>>* networkAdapters)
 {
+	Etw::EtwScopedEvent convertEvent("IPInformation", "Get all network adapters");
 	HRESULT hr;
 
 	WRL::ComPtr<INetworkInformationStatics> networkInformation;
