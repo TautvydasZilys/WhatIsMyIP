@@ -13,6 +13,7 @@ using namespace PlugNPlay;
 
 PlugNPlayObjectRegistry* PlugNPlayObjectRegistry::s_Instance;
 
+const wchar_t kNDIS_LAN_CLASS_Filter[] = LR"(System.Devices.InterfaceClassGuid:="{ad498944-762f-11d0-8dcb-00c04fc3358c}")";
 const wchar_t kDEVPKEY_Device_InstanceId[] = L"{78c34fc8-104a-4aca-9ea4-524d52996e57} 256";
 const wchar_t kDEVPKEY_Device_DeviceDesc[] = L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 2";
 const wchar_t kDEVPKEY_Device_FriendlyName[] = L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 14";
@@ -66,7 +67,7 @@ HRESULT PlugNPlayObjectRegistry::Initialize()
 	auto interfaceInstanceIdProperties = WRL::Make<Utilities::Vector<HSTRING>>();
 	interfaceInstanceIdProperties->Append(Utilities::HStringReference(kDEVPKEY_Device_InstanceId));
 
-	hr = m_PnpObjectStatics->CreateWatcher(PnpObjectType_DeviceInterface, interfaceInstanceIdProperties.Get(), &m_PnpObjectWatcher);
+	hr = m_PnpObjectStatics->CreateWatcherAqsFilter(PnpObjectType_DeviceInterface, interfaceInstanceIdProperties.Get(), Utilities::HStringReference(kNDIS_LAN_CLASS_Filter), &m_PnpObjectWatcher);
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<PlugNPlayObjectRegistry> _this = this;
