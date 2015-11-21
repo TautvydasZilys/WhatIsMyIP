@@ -1,6 +1,7 @@
 #include "PrecompiledHeader.h"
 
 #include "Etw\EtwInitializer.h"
+#include "PlugNPlay\ScopedPlugNPlayObjectRegistry.h"
 #include "UI\WhatIsMyIPApp.h"
 #include "Utilities\EventHandler.h"
 #include "Utilities\HString.h"
@@ -16,6 +17,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	Etw::EtwSingleEvent("Lifetime", "wWinMain startup");
 
 	RoInitializer roInit;
+	PlugNPlay::ScopedPlugNPlayObjectRegistry pnpRegistry;
 
 	WRL::ComPtr<IApplicationStatics> applicationStatics;
 	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.UI.Xaml.Application"), &applicationStatics);

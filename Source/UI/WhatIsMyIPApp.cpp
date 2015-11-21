@@ -45,7 +45,6 @@ void WhatIsMyIPApp::Cleanup()
 		Assert(SUCCEEDED(hr));
 	}
 
-	PlugNPlay::PlugNPlayObjectRegistry::Destroy();
 	XamlApplication::Cleanup();
 }
 
@@ -492,9 +491,6 @@ HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* a
 			return _this->RefreshIPInformationText();
 		});
 	}).Get(), &m_OnNetworkStatusChangedToken);
-
-	hr = PlugNPlay::PlugNPlayObjectRegistry::Create();
-	ReturnIfFailed(hr);
 
 	return XamlApplication::OnLaunched(args);
 }
