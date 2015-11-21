@@ -31,7 +31,11 @@ public:
 		Assert(s_ThreadPool != nullptr);
 
 		WRL::ComPtr<IAsyncAction> runAction;
-		return s_ThreadPool->RunAsync(EventHandlerFactory<ABI::Windows::System::Threading::IWorkItemHandler>::Make(function).Get(), &runAction);
+		return s_ThreadPool->RunAsync(EventHandlerFactory<ABI::Windows::System::Threading::IWorkItemHandler>::Make(
+			[function](IAsyncAction*) -> HRESULT
+			{
+				function(); return S_OK;
+			}).Get(), &runAction);
 	}
 
 	struct ScopedSingleton
