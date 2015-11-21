@@ -53,6 +53,7 @@ PlugNPlayObjectRegistry::PlugNPlayObjectRegistry() :
 	m_AddedEventToken.value = 0;
 	m_UpdatedEventToken.value = 0;
 	m_RemovedEventToken.value = 0;
+	m_InitialEnumerationCompletedToken.value = 0;
 }
 
 HRESULT PlugNPlayObjectRegistry::Initialize()
@@ -137,6 +138,14 @@ void PlugNPlayObjectRegistry::Cleanup()
 			m_AddedEventToken.value = 0;
 		}
 
+		if (m_InitialEnumerationCompletedToken.value != 0)
+		{
+			hr = m_PnpObjectWatcher->remove_EnumerationCompleted(m_InitialEnumerationCompletedToken);
+			Assert(SUCCEEDED(hr));
+
+			m_InitialEnumerationCompletedToken.value = 0;
+		}
+
 		Utilities::ReaderWriterLock::WriterLock lock(m_RegistryLock);
 
 		if (m_IsPnpObjectWatcherRunning)
@@ -179,7 +188,7 @@ void PlugNPlayObjectRegistry::RebuildRegistry()
 	Utilities::ReaderWriterLock::WriterLock registryLock(m_RegistryLock);
 	Utilities::CriticalSection::Lock objectLock(m_ObjectCriticalSection);
 
-	Etw::EtwScopedEvent rebuildEVent("PlugNPlayObjectRegistry", "Rebuild registry");
+	Etw::EtwScopedEvent rebuildEvent("PlugNPlayObjectRegistry", "Rebuild registry");
 
 	m_DirtyStatus = DirtyStatus::kNotDirty;
 
@@ -323,15 +332,13 @@ void PlugNPlayObjectRegistry::OnInitialEnumerationCompleted()
 
 HRESULT PlugNPlayObjectRegistry::LookupImpl(const wchar_t* interfaceInstanceIdSubstring, HSTRING* outName)
 {
-	Assert(s_Instance != nullptr);
-
-	auto waitResult = WaitForSingleObjectEx(s_Instance->m_InitialEnumerationCompletedEvent, INFINITE, FALSE);
+	auto waitResult = WaitForSingleObjectEx(m_InitialEnumerationCompletedEvent, INFINITE, FALSE);
 	Assert(waitResult == WAIT_OBJECT_0);
 
 	RebuildRegistryIfNeeded();
 	Utilities::ReaderWriterLock::ReaderLock lock(m_RegistryLock);
 
-	bool found;
+	bool found = false;
 	size_t foundIndex;
 
 	for (size_t i = 0; i < m_InterfaceInstanceIds.size(); i++)
