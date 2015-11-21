@@ -18,15 +18,18 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	RoInitializer roInit;
 	PlugNPlay::ScopedPlugNPlayObjectRegistry pnpRegistry;
-
+	
 	WRL::ComPtr<IApplicationStatics> applicationStatics;
 	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.UI.Xaml.Application"), &applicationStatics);
-	Assert(SUCCEEDED(hr));
+	FastFailIfFailed(hr);
 	
-	return applicationStatics->Start(
+	hr = applicationStatics->Start(
 		EventHandlerFactory<IApplicationInitializationCallback>::Make(
 			[applicationStatics](IApplicationInitializationCallbackParams* initializationCallbackParams) -> HRESULT
 	{
 		return XamlApplication::Run<WhatIsMyIPApp>(applicationStatics.Get());
 	}).Get());
+	FastFailIfFailed(hr);
+
+	return 0;
 }

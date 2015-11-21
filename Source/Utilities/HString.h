@@ -33,32 +33,32 @@ public:
 	inline HString(const wchar_t* str)
 	{
 		auto hr = WindowsCreateString(str, static_cast<uint32_t>(wcslen(str)), &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	inline HString(const wchar_t* str, uint32_t length)
 	{
 		auto hr = WindowsCreateString(str, length, &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	template <uint32_t length>
 	inline HString(const wchar_t (&str)[length])
 	{
 		auto hr = WindowsCreateString(str, length - 1, &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	inline HString(HSTRING str)
 	{
 		auto hr = WindowsDuplicateString(str, &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	inline HString(const HString& other)
 	{
 		auto hr = WindowsDuplicateString(other.m_String, &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	inline HString(HString&& other) :
@@ -76,7 +76,7 @@ public:
 		Release();
 		
 		auto hr = WindowsDuplicateString(other.m_String, &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 
 		return *this;
 	}
@@ -134,20 +134,20 @@ public:
 	inline HStringReference(const wchar_t* str)
 	{
 		auto hr = WindowsCreateStringReference(str, static_cast<uint32_t>(wcslen(str)), &m_Header, &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	inline HStringReference(const wchar_t* str, uint32_t length)
 	{
 		auto hr = WindowsCreateStringReference(str, length, &m_Header, &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	template <uint32_t length>
 	inline HStringReference(const wchar_t(&str)[length])
 	{
 		auto hr = WindowsCreateStringReference(str, length - 1, &m_Header, &m_String);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	inline operator HSTRING() const

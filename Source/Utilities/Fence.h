@@ -25,7 +25,10 @@ public:
 	inline void Advance()
 	{
 		if (InterlockedDecrement(&m_Height) == 0)
-			SetEvent(m_Event);
+		{
+			auto setEventResult = SetEvent(m_Event);
+			Assert(setEventResult != FALSE);
+		}
 	}
 
 	inline void Synchronize()

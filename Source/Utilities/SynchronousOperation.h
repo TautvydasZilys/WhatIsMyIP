@@ -38,7 +38,8 @@ private:
 			}
 		}
 
-		SetEvent(m_Event);
+		auto setEventResult = SetEvent(m_Event);
+		Assert(setEventResult != FALSE);
 		return S_OK;
 	}
 

@@ -9,7 +9,7 @@ struct ScopedPlugNPlayObjectRegistry
 	inline ScopedPlugNPlayObjectRegistry()
 	{
 		auto hr = PlugNPlayObjectRegistry::Create();
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	inline ~ScopedPlugNPlayObjectRegistry()

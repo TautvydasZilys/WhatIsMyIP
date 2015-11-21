@@ -27,7 +27,7 @@ public:
 	inline static void AddRef(T& item)
 	{
 		auto hr = WindowsDuplicateString(item, &item);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	template <typename T, typename std::enable_if<std::is_same<HSTRING, T>::value, bool>::type = true>

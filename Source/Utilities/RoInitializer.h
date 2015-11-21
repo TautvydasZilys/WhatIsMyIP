@@ -8,7 +8,7 @@ struct RoInitializer
 	inline RoInitializer()
 	{
 		auto hr = RoInitialize(RO_INIT_MULTITHREADED);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
 	}
 
 	inline ~RoInitializer()

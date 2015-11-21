@@ -40,6 +40,7 @@ namespace WRL
 #define DoIfFailed(hr, action) do { Assert(SUCCEEDED(hr)); if (FAILED(hr)) { action; } } while (false)
 #define ContinueIfFailed(hr) DoIfFailed(hr, continue)
 #define ReturnIfFailed(hr) DoIfFailed(hr, return hr)
+#define FastFailIfFailed(hr) DoIfFailed(hr, __fastfail(hr))
 #define ReturnSuccessIfFailed(hr) DoIfFailed(hr, return S_OK)
 #define AdvanceFenceAndContinueIfFailed(hr, fence) DoIfFailed(hr, fence.Advance(); continue)
 #define AdvanceFenceAndReturnIfFailed(hr, fence) DoIfFailed(hr, fence.Advance(); return hr)

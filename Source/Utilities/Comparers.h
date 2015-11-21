@@ -11,7 +11,8 @@ struct HStringLess
 	{
 		int32_t lexicalComparisonResult;
 		auto hr = WindowsCompareStringOrdinal(left, right, &lexicalComparisonResult);
-		Assert(SUCCEEDED(hr));
+		FastFailIfFailed(hr);
+
 		return lexicalComparisonResult < 0;
 	}
 
