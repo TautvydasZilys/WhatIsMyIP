@@ -52,7 +52,7 @@ private:
 	EventRegistrationToken m_RemovedEventToken;
 	EventRegistrationToken m_InitialEnumerationCompletedToken;
 
-	enum class DirtyStatus : LONG
+	enum class DirtyStatus
 	{
 		kNotDirty,
 		kDirty,

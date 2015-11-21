@@ -60,6 +60,11 @@ PlugNPlayObjectRegistry::PlugNPlayObjectRegistry() :
 HRESULT PlugNPlayObjectRegistry::Initialize()
 {
 	m_InitialEnumerationCompletedEvent = CreateEventExW(nullptr, nullptr, CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
+	if (m_InitialEnumerationCompletedEvent == NULL)
+	{
+		Assert(false);
+		return HRESULT_FROM_WIN32(GetLastError());
+	}
 
 	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.Devices.Enumeration.Pnp.PnpObject"), &m_PnpObjectStatics);
 	ReturnIfFailed(hr);
@@ -298,16 +303,13 @@ void PlugNPlayObjectRegistry::OnObjectAdded(IPnpObject* pnpObject)
 	Utilities::CriticalSection::Lock lock(m_ObjectCriticalSection);
 	m_PnpObjects.emplace(std::move(objectId), pnpObject);
 
-	if (m_IsInitialEnumerationCompleted)
-		m_DirtyStatus = DirtyStatus::kDirty;
+	m_DirtyStatus = DirtyStatus::kDirty;
 }
 
 void PlugNPlayObjectRegistry::OnObjectUpdated(IPnpObjectUpdate* pnpObjectUpdate)
 {
 	Utilities::CriticalSection::Lock lock(m_ObjectCriticalSection);
-
-	if (m_IsInitialEnumerationCompleted)
-		m_DirtyStatus = DirtyStatus::kDirty;
+	m_DirtyStatus = DirtyStatus::kDirty;
 }
 
 void PlugNPlayObjectRegistry::OnObjectRemoved(IPnpObjectUpdate* pnpObjectUpdate)
@@ -319,22 +321,25 @@ void PlugNPlayObjectRegistry::OnObjectRemoved(IPnpObjectUpdate* pnpObjectUpdate)
 
 	Utilities::CriticalSection::Lock lock(m_ObjectCriticalSection);
 	m_PnpObjects.erase(objectId);
-
-	if (m_IsInitialEnumerationCompleted)
-		m_DirtyStatus = DirtyStatus::kDirty;
+	m_DirtyStatus = DirtyStatus::kDirty;
 }
 
 void PlugNPlayObjectRegistry::OnInitialEnumerationCompleted()
 {
-	m_IsInitialEnumerationCompleted = true;
 	RebuildRegistry();
-	SetEvent(m_InitialEnumerationCompletedEvent);
+	m_IsInitialEnumerationCompleted = true;
+	
+	auto setEventResult = SetEvent(m_InitialEnumerationCompletedEvent);
+	Assert(setEventResult != FALSE);
 }
 
 HRESULT PlugNPlayObjectRegistry::LookupImpl(const wchar_t* interfaceInstanceIdSubstring, HSTRING* outName)
 {
-	auto waitResult = WaitForSingleObjectEx(m_InitialEnumerationCompletedEvent, INFINITE, FALSE);
-	Assert(waitResult == WAIT_OBJECT_0);
+	if (!m_IsInitialEnumerationCompleted)
+	{
+		auto waitResult = WaitForSingleObjectEx(m_InitialEnumerationCompletedEvent, INFINITE, FALSE);
+		Assert(waitResult == WAIT_OBJECT_0);
+	}
 
 	RebuildRegistryIfNeeded();
 	Utilities::ReaderWriterLock::ReaderLock lock(m_RegistryLock);
