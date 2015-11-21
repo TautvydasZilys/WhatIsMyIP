@@ -7,9 +7,9 @@ namespace Utilities
 {
 
 #define AsyncCreationSingletonImpl(T) \
-	std::atomic<AsyncCreationSingleton::CreationState> Utilities::AsyncCreationSingleton<T>::s_CreationState = CreationState::kNotCreated; \
+	std::atomic<Utilities::AsyncCreationSingleton<T>::CreationState> Utilities::AsyncCreationSingleton<T>::s_CreationState = Utilities::AsyncCreationSingleton<T>::CreationState::kNotCreated; \
 	T* Utilities::AsyncCreationSingleton<T>::s_Instance = nullptr; \
-	Utilities::HandleHolder Utilities::AsyncCreationSingleton<T>::s_CreatedEvent;
+	Utilities::HandleHolder Utilities::AsyncCreationSingleton<T>::s_CreatedEvent
 
 template <typename T>
 class AsyncCreationSingleton
@@ -37,7 +37,9 @@ private:
 			CreationState notCreated = CreationState::kNotCreated;
 			if (s_CreationState.compare_exchange_strong(notCreated, CreationState::kCreating, std::memory_order_seq_cst))
 			{
-				s_Instance = T::Create();
+				auto hr = T::Create(&s_Instance);
+				FastFailIfFailed(hr);
+
 				s_CreationState = CreationState::kCreated;
 				
 				auto setEventResult = SetEvent(s_CreatedEvent);
@@ -54,14 +56,14 @@ private:
 		for (;;)
 		{
 			CreationState notCreated = CreationState::kNotCreated;
-			if (m_CreationState.compare_exchange_strong(notCreated, CreationState::kDestroyed, std::memory_order_seq_cst))
+			if (s_CreationState.compare_exchange_strong(notCreated, CreationState::kDestroyed, std::memory_order_seq_cst))
 				break;
 
 			CreationState created = CreationState::kCreated;
-			if (m_CreationState.compare_exchange_strong(created, CreationState::kDestroyed, std::memory_order_seq_cst))
+			if (s_CreationState.compare_exchange_strong(created, CreationState::kDestroyed, std::memory_order_seq_cst))
 			{
-				m_Instance->Destroy();
-				m_Instance = nullptr;
+				s_Instance->Destroy();
+				s_Instance = nullptr;
 				break;
 			}
 		}

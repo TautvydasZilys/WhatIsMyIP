@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Utilities\AsyncCreationSingleton.h"
 #include "Utilities\Comparers.h"
 #include "Utilities\CriticalSection.h"
 #include "Utilities\HandleHolder.h"
@@ -32,7 +33,8 @@ namespace PlugNPlay
 //     Lookup device name:  ~0.015 ms
 //
 class PlugNPlayObjectRegistry :
-	public WRL::RuntimeClass<WRL::RuntimeClassFlags<WRL::ClassicCom>, IUnknown>
+	public WRL::RuntimeClass<WRL::RuntimeClassFlags<WRL::ClassicCom>, IUnknown>,
+	public Utilities::AsyncCreationSingleton<PlugNPlayObjectRegistry>
 {
 private:
 	Utilities::HandleHolder m_InitialEnumerationCompletedEvent;
@@ -63,8 +65,6 @@ private:
 	bool m_IsPnpObjectWatcherRunning;
 	volatile bool m_IsInitialEnumerationCompleted;
 
-	static PlugNPlayObjectRegistry* s_Instance;
-
 	PlugNPlayObjectRegistry();
 	HRESULT Initialize();
 	void Cleanup();
@@ -78,12 +78,13 @@ private:
 	void OnInitialEnumerationCompleted();
 	HRESULT LookupImpl(const wchar_t* interfaceInstanceIdSubstring, HSTRING* outName);
 
+	static HRESULT Create(PlugNPlayObjectRegistry** registry);
+	void Destroy();
+
 	friend WRL::ComPtr<PlugNPlayObjectRegistry> WRL::Make<PlugNPlayObjectRegistry>();
+	friend class Utilities::AsyncCreationSingleton<PlugNPlayObjectRegistry>;
 
 public:
-	static HRESULT Create();
-	static void Destroy();
-
 	static HRESULT Lookup(const wchar_t* interfaceInstanceIdSubstring, HSTRING* outName);
 };
 

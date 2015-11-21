@@ -30,9 +30,9 @@ public:
 	{
 		Assert(s_ThreadPool != nullptr);
 
-		WRL::ComPtr<IAsyncAction> runAction;
+		WRL::ComPtr<ABI::Windows::Foundation::IAsyncAction> runAction;
 		return s_ThreadPool->RunAsync(EventHandlerFactory<ABI::Windows::System::Threading::IWorkItemHandler>::Make(
-			[function](IAsyncAction*) -> HRESULT
+			[function](ABI::Windows::Foundation::IAsyncAction*) -> HRESULT
 			{
 				function(); return S_OK;
 			}).Get(), &runAction);

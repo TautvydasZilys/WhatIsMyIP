@@ -431,31 +431,36 @@ HRESULT WhatIsMyIPApp::RefreshIPInformationText()
 	WRL::ComPtr<WhatIsMyIPApp> _this = this;
 	return Networking::GenerateIPInformationAsync([_this, refreshIPInfoEvent](const std::vector<Networking::ConnectionProperties>& connectionProperties)
 	{
-		std::wstringstream textStream;
+		Utilities::HString text;
 
-		if (connectionProperties.size() > 0)
 		{
-			for (auto& properties : connectionProperties)
+			Etw::EtwScopedEvent formIPInfoTextEvent("Lifetime", "Form IP info text");
+			std::wstringstream textStream;
+
+			if (connectionProperties.size() > 0)
 			{
-				textStream << properties.name << std::endl;
-
-				for (auto& property : properties.properties)
+				for (auto& properties : connectionProperties)
 				{
-					textStream << L"    ";
-					textStream << std::setw(28) << std::left << property.first;
-					textStream << property.second << std::endl;
+					textStream << properties.name << std::endl;
+
+					for (auto& property : properties.properties)
+					{
+						textStream << L"    ";
+						textStream << std::setw(28) << std::left << property.first;
+						textStream << property.second << std::endl;
+					}
+
+					textStream << std::endl;
 				}
-
-				textStream << std::endl;
 			}
-		}
-		else
-		{
-			textStream << L"There are no connections available." << std::endl;
-		}
+			else
+			{
+				textStream << L"There are no connections available." << std::endl;
+			}
 
-		auto str = textStream.str();
-		Utilities::HString text(str.c_str(), static_cast<uint32_t>(str.length()));
+			auto str = textStream.str();
+			text = Utilities::HString(str.c_str(), static_cast<uint32_t>(str.length()));
+		}
 
 		auto hr = _this->ExecuteOnUIThread([_this, text, refreshIPInfoEvent]() -> HRESULT
 		{

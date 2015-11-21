@@ -11,14 +11,14 @@ using namespace ABI::Windows::Foundation;
 using namespace ABI::Windows::Foundation::Collections;
 using namespace PlugNPlay;
 
-PlugNPlayObjectRegistry* PlugNPlayObjectRegistry::s_Instance;
-
 const wchar_t kNDIS_LAN_CLASS_Filter[] = LR"(System.Devices.InterfaceClassGuid:="{ad498944-762f-11d0-8dcb-00c04fc3358c}")";
 const wchar_t kDEVPKEY_Device_InstanceId[] = L"{78c34fc8-104a-4aca-9ea4-524d52996e57} 256";
 const wchar_t kDEVPKEY_Device_DeviceDesc[] = L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 2";
 const wchar_t kDEVPKEY_Device_FriendlyName[] = L"{A45C254E-DF1C-4EFD-8020-67D146A850E0} 14";
 
-HRESULT PlugNPlayObjectRegistry::Create()
+AsyncCreationSingletonImpl(PlugNPlayObjectRegistry);
+
+HRESULT PlugNPlayObjectRegistry::Create(PlugNPlayObjectRegistry** registry)
 {
 	Etw::EtwScopedEvent creationEvent("PlugNPlayObjectRegistry", "Create registry");
 
@@ -31,19 +31,14 @@ HRESULT PlugNPlayObjectRegistry::Create()
 		ReturnIfFailed(hr);
 	}
 
-	s_Instance = instance.Detach();
+	*registry = instance.Detach();
 	return S_OK;
 }
 
 void PlugNPlayObjectRegistry::Destroy()
 {
-	auto instance = static_cast<PlugNPlayObjectRegistry*>(InterlockedExchangePointer(reinterpret_cast<void**>(&s_Instance), nullptr));
-
-	if (instance != nullptr)
-	{
-		instance->Cleanup();
-		instance->Release();
-	}
+	Cleanup();
+	Release();
 }
 
 PlugNPlayObjectRegistry::PlugNPlayObjectRegistry() :
@@ -169,9 +164,7 @@ void PlugNPlayObjectRegistry::Cleanup()
 HRESULT PlugNPlayObjectRegistry::Lookup(const wchar_t* interfaceInstanceIdSubstring, HSTRING* outName)
 {
 	Etw::EtwScopedEvent lookupEvent("PlugNPlayObjectRegistry", "Lookup interface instance id substring");
-
-	Assert(s_Instance != nullptr);
-	return s_Instance->LookupImpl(interfaceInstanceIdSubstring, outName);
+	return GetInstance()->LookupImpl(interfaceInstanceIdSubstring, outName);
 }
 
 static inline HRESULT UnboxString(IInspectable* boxed, HSTRING* outUnboxed)
