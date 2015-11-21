@@ -27,6 +27,10 @@ namespace PlugNPlay
 // 2. Look for first not bigger index value in m_InstanceIdIndices
 // 3. The index of first non-bigger index value is the index of device name in m_DeviceNames
 //
+// Some numbers from Lumia 920:
+//     Rebuilding registry: ~35 ms
+//     Lookup device name:  ~0.015 ms
+//
 class PlugNPlayObjectRegistry :
 	public WRL::RuntimeClass<WRL::RuntimeClassFlags<WRL::ClassicCom>, IUnknown>
 {
