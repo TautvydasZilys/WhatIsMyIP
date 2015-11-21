@@ -1,7 +1,6 @@
 #include "PrecompiledHeader.h"
 #include "Etw\Etw.h"
-#include "Networking\ConnectionProperties.h"
-#include "Networking\IPInformationGenerator.h"
+#include "Networking\IPInformationWatcher.h"
 #include "PlugNPlay\PlugNPlayObjectRegistry.h"
 #include "Utilities\EventHandler.h"
 #include "VisualObjects.h"
@@ -21,11 +20,12 @@ using namespace ABI::Windows::UI::Xaml::Media;
 using namespace UI;
 
 WhatIsMyIPApp::WhatIsMyIPApp() :
-	m_ActiveRefreshTaskCount(0)
+	m_ActiveRefreshTaskCount(1),
+	m_HadFirstWindowActivation(false)
 {
 	Etw::EtwSingleEvent("Lifetime", "WhatIsMyIP app started");
 
-	m_OnNetworkStatusChangedToken.value = 0;
+	m_WatchIPInformationChangesToken = 0;
 	m_RefreshButtonClickedToken.value = 0;
 }
 
@@ -33,11 +33,8 @@ void WhatIsMyIPApp::Cleanup()
 {
 	HRESULT hr;
 
-	if (m_OnNetworkStatusChangedToken.value != 0)
-	{
-		hr = Networking::IPInformation::UnsubscribeFromOnNetworkStatusChanged(m_OnNetworkStatusChangedToken);
-		Assert(SUCCEEDED(hr));
-	}
+	if (m_WatchIPInformationChangesToken != 0)
+		Networking::IPInformationWatcher::UnsubscribeFromChanges(m_WatchIPInformationChangesToken);
 	
 	if (m_RefreshButton != nullptr && m_RefreshButtonClickedToken.value != 0)
 	{
@@ -225,7 +222,7 @@ HRESULT WhatIsMyIPApp::CreateProgressBar(IUIElement** outProgressBar)
 	progressBar.As(&m_ProgressBar);
 	ReturnIfFailed(hr);
 
-	hr = m_ProgressBar->put_Visibility(Visibility_Collapsed);
+	hr = m_ProgressBar->put_Visibility(Visibility_Visible);
 	ReturnIfFailed(hr);
 
 	*outProgressBar = m_ProgressBar.Get();
@@ -371,7 +368,8 @@ HRESULT WhatIsMyIPApp::CreateRefreshButtomForAppBar(IUIElement** outButton)
 	WRL::ComPtr<WhatIsMyIPApp> _this = this;
 	m_RefreshButton->add_Click(Utilities::EventHandlerFactory<IRoutedEventHandler>::Make([_this](IInspectable* sender, IRoutedEventArgs* args)
 	{
-		return _this->RefreshIPInformationText();
+		_this->RequestIPInformationUpdate();
+		return S_OK;
 	}).Get(), &m_RefreshButtonClickedToken);
 
 	return button.Get()->QueryInterface(outButton);
@@ -416,65 +414,64 @@ HRESULT WhatIsMyIPApp::CreateXamlLayout()
 	return S_OK;
 }
 
-HRESULT WhatIsMyIPApp::RefreshIPInformationText()
+void WhatIsMyIPApp::RequestIPInformationUpdate()
 {
-	Etw::EtwRefCountedScopedEvent refreshIPInfoEvent("Lifetime", "Refresh ip information");
+	Networking::IPInformationWatcher::ForceUpdateIPInformation();
 
 	if (m_ActiveRefreshTaskCount == 0)
 	{
 		auto hr = m_ProgressBar->put_Visibility(Visibility_Visible);
-		ReturnIfFailed(hr);
+		Assert(SUCCEEDED(hr));
 	}
 
 	m_ActiveRefreshTaskCount++;
+}
 
-	WRL::ComPtr<WhatIsMyIPApp> _this = this;
-	return Networking::GenerateIPInformationAsync([_this, refreshIPInfoEvent](const std::vector<Networking::ConnectionProperties>& connectionProperties)
+void WhatIsMyIPApp::OnIPInformationRefreshed(const std::vector<Networking::ConnectionProperties>& connectionProperties)
+{
+	Utilities::HString text;
+
 	{
-		Utilities::HString text;
+		Etw::EtwScopedEvent formIPInfoTextEvent("Lifetime", "Form IP info text");
+		std::wstringstream textStream;
 
+		if (connectionProperties.size() > 0)
 		{
-			Etw::EtwScopedEvent formIPInfoTextEvent("Lifetime", "Form IP info text");
-			std::wstringstream textStream;
-
-			if (connectionProperties.size() > 0)
+			for (auto& properties : connectionProperties)
 			{
-				for (auto& properties : connectionProperties)
+				textStream << properties.name << std::endl;
+
+				for (auto& property : properties.properties)
 				{
-					textStream << properties.name << std::endl;
-
-					for (auto& property : properties.properties)
-					{
-						textStream << L"    ";
-						textStream << std::setw(28) << std::left << property.first;
-						textStream << property.second << std::endl;
-					}
-
-					textStream << std::endl;
+					textStream << L"    ";
+					textStream << std::setw(28) << std::left << property.first;
+					textStream << property.second << std::endl;
 				}
-			}
-			else
-			{
-				textStream << L"There are no connections available." << std::endl;
-			}
 
-			auto str = textStream.str();
-			text = Utilities::HString(str.c_str(), static_cast<uint32_t>(str.length()));
+				textStream << std::endl;
+			}
+		}
+		else
+		{
+			textStream << L"There are no connections available." << std::endl;
 		}
 
-		auto hr = _this->ExecuteOnUIThread([_this, text, refreshIPInfoEvent]() -> HRESULT
-		{
-			auto hr = _this->m_TextBlock->put_Text(text);
-			ReturnIfFailed(hr);
+		auto str = textStream.str();
+		text = Utilities::HString(str.c_str(), static_cast<uint32_t>(str.length()));
+	}
 
-			_this->m_ActiveRefreshTaskCount--;
-			if (_this->m_ActiveRefreshTaskCount == 0)
-				return _this->m_ProgressBar->put_Visibility(Visibility_Collapsed);
+	WRL::ComPtr<WhatIsMyIPApp> _this = this;
+	auto hr = ExecuteOnUIThread([_this, text]() -> HRESULT
+	{
+		Etw::EtwSingleEvent("Lifetime", "Displaying IP information");
+		auto hr = _this->m_TextBlock->put_Text(text);
+		ReturnIfFailed(hr);
 
-			return S_OK;
-		});
+		_this->m_ActiveRefreshTaskCount--;
+		if (_this->m_ActiveRefreshTaskCount == 0)
+			return _this->m_ProgressBar->put_Visibility(Visibility_Collapsed);
 
-		return hr;
+		return S_OK;
 	});
 }
 
@@ -489,13 +486,10 @@ HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* a
 	ReturnIfFailed(hr);
 
 	WRL::ComPtr<WhatIsMyIPApp> _this = this;
-	hr = Networking::IPInformation::SubscribeToOnNetworkStatusChanged(Utilities::EventHandlerFactory<INetworkStatusChangedEventHandler>::Make([_this](IInspectable* sender) -> HRESULT
+	m_WatchIPInformationChangesToken = Networking::IPInformationWatcher::SubscribeToChanges([_this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
 	{
-		return _this->ExecuteOnUIThread([_this]()
-		{
-			return _this->RefreshIPInformationText();
-		});
-	}).Get(), &m_OnNetworkStatusChangedToken);
+		_this->OnIPInformationRefreshed(connectionProperties);
+	});
 
 	return XamlApplication::OnLaunched(args);
 }
@@ -510,8 +504,14 @@ HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnWindowActivated(IWindowActivatedEvent
 
 	if (windowActivationState != CoreWindowActivationState_Deactivated)
 	{
-		hr = RefreshIPInformationText();
-		ReturnIfFailed(hr);
+		if (m_HadFirstWindowActivation)
+		{
+			RequestIPInformationUpdate();
+		}
+		else
+		{
+			m_HadFirstWindowActivation = true;
+		}
 	}
 
 	return S_OK;

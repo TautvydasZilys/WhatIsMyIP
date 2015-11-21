@@ -20,6 +20,7 @@
 #include <atomic>
 #include <cstdint>
 #include <iomanip>
+#include <functional>
 #include <map>
 #include <memory>
 #include <sstream>

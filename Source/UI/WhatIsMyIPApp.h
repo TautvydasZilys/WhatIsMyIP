@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Networking\ConnectionProperties.h"
 #include "XamlApplication.h"
 
 namespace UI
@@ -14,12 +15,14 @@ private:
 	WRL::ComPtr<ABI::Windows::UI::Xaml::IUIElement> m_ProgressBar;
 	WRL::ComPtr<ABI::Windows::UI::Xaml::Controls::Primitives::IButtonBase> m_RefreshButton;
 	uint32_t m_ActiveRefreshTaskCount;
+	bool m_HadFirstWindowActivation;
 
-	EventRegistrationToken m_OnNetworkStatusChangedToken;
+	uint32_t m_WatchIPInformationChangesToken;
 	EventRegistrationToken m_RefreshButtonClickedToken;
 
 	HRESULT CreateXamlLayout();
-	HRESULT RefreshIPInformationText();
+	void RequestIPInformationUpdate();
+	void OnIPInformationRefreshed(const std::vector<Networking::ConnectionProperties>& connectionProperties);
 
 	HRESULT CreatePage(ABI::Windows::UI::Xaml::IUIElement** page);
 	HRESULT CreateRootGrid(ABI::Windows::UI::Xaml::IUIElement** outGrid);

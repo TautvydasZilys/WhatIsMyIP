@@ -296,21 +296,3 @@ HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<W
 
 	return S_OK;
 }
-
-HRESULT Networking::IPInformation::SubscribeToOnNetworkStatusChanged(ABI::Windows::Networking::Connectivity::INetworkStatusChangedEventHandler* eventHandler, EventRegistrationToken* eventToken)
-{
-	WRL::ComPtr<INetworkInformationStatics> networkInformation;
-	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation"), &networkInformation);
-	ReturnIfFailed(hr);
-
-	return networkInformation->add_NetworkStatusChanged(eventHandler, eventToken);
-}
-
-HRESULT Networking::IPInformation::UnsubscribeFromOnNetworkStatusChanged(EventRegistrationToken eventToken)
-{
-	WRL::ComPtr<INetworkInformationStatics> networkInformation;
-	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation"), &networkInformation);
-	ReturnIfFailed(hr);
-
-	return networkInformation->remove_NetworkStatusChanged(eventToken);
-}

@@ -1,6 +1,7 @@
 #include "PrecompiledHeader.h"
 
 #include "Etw\EtwInitializer.h"
+#include "Networking\IPInformationWatcher.h"
 #include "PlugNPlay\PlugNPlayObjectRegistry.h"
 #include "UI\WhatIsMyIPApp.h"
 #include "Utilities\EventHandler.h"
@@ -10,16 +11,16 @@
 
 using namespace	ABI::Windows::UI::Xaml;
 using namespace UI;
-using namespace Utilities;
 
 int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	Etw::EtwInitializer etwInit;
 	Etw::EtwSingleEvent("Lifetime", "wWinMain startup");
 
-	RoInitializer roInit;
+	Utilities::RoInitializer roInit;
 	Utilities::ThreadPoolRunner::ScopedSingleton threadPoolRunner;
 	PlugNPlay::PlugNPlayObjectRegistry::ScopedSingleton pnpRegistry;
+	Networking::IPInformationWatcher::ScopedSingleton ipInfoWatcher;
 
 	Etw::EtwSingleEvent("Lifetime", "Calling Application.Run");
 
@@ -28,7 +29,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	FastFailIfFailed(hr);
 
 	hr = applicationStatics->Start(
-		EventHandlerFactory<IApplicationInitializationCallback>::Make(
+		Utilities::EventHandlerFactory<IApplicationInitializationCallback>::Make(
 			[applicationStatics](IApplicationInitializationCallbackParams* initializationCallbackParams) -> HRESULT
 	{
 		return XamlApplication::Run<WhatIsMyIPApp>(applicationStatics.Get());
