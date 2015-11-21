@@ -467,9 +467,13 @@ void WhatIsMyIPApp::OnIPInformationRefreshed(const std::vector<Networking::Conne
 		auto hr = _this->m_TextBlock->put_Text(text);
 		ReturnIfFailed(hr);
 
-		_this->m_ActiveRefreshTaskCount--;
-		if (_this->m_ActiveRefreshTaskCount == 0)
-			return _this->m_ProgressBar->put_Visibility(Visibility_Collapsed);
+		if (_this->m_ActiveRefreshTaskCount > 0)
+		{
+			_this->m_ActiveRefreshTaskCount--;
+
+			if (_this->m_ActiveRefreshTaskCount == 0)
+				return _this->m_ProgressBar->put_Visibility(Visibility_Collapsed);
+		}
 
 		return S_OK;
 	});
@@ -479,17 +483,20 @@ HRESULT STDMETHODCALLTYPE WhatIsMyIPApp::OnLaunched(ILaunchActivatedEventArgs* a
 {
 	Etw::EtwScopedEvent onLaunchedEvent("Lifetime", "OnLaunched");
 
-	auto hr = CreateXamlLayout();
-	ReturnIfFailed(hr);
-
-	hr = GetWindow()->put_Content(m_RootElement.Get());
-	ReturnIfFailed(hr);
-
-	WRL::ComPtr<WhatIsMyIPApp> _this = this;
-	m_WatchIPInformationChangesToken = Networking::IPInformationWatcher::SubscribeToChanges([_this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
+	if (m_RootElement == nullptr)
 	{
-		_this->OnIPInformationRefreshed(connectionProperties);
-	});
+		auto hr = CreateXamlLayout();
+		ReturnIfFailed(hr);
+
+		hr = GetWindow()->put_Content(m_RootElement.Get());
+		ReturnIfFailed(hr);
+
+		WRL::ComPtr<WhatIsMyIPApp> _this = this;
+		m_WatchIPInformationChangesToken = Networking::IPInformationWatcher::SubscribeToChanges([_this](const std::vector<Networking::ConnectionProperties>& connectionProperties)
+		{
+			_this->OnIPInformationRefreshed(connectionProperties);
+		});
+	}
 
 	return XamlApplication::OnLaunched(args);
 }
