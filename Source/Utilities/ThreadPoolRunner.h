@@ -34,7 +34,8 @@ public:
 		return s_ThreadPool->RunAsync(EventHandlerFactory<ABI::Windows::System::Threading::IWorkItemHandler>::Make(
 			[function](ABI::Windows::Foundation::IAsyncAction*) -> HRESULT
 			{
-				function(); return S_OK;
+				function();
+				return S_OK;
 			}).Get(), &runAction);
 	}
 
