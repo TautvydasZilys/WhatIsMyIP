@@ -7,6 +7,7 @@
 #include "PlugNPlay\PlugNPlayObjectRegistry.h"
 #include "Utilities\EventHandler.h"
 #include "Utilities\SynchronousOperation.h"
+#include "Utilities\ThreadPoolRunner.h"
 #include "Utilities\Vector.h"
 
 using namespace ABI::Windows::Devices::Enumeration::Pnp;
@@ -46,9 +47,27 @@ static HRESULT GetNetworkAdapterName(INetworkAdapter* networkAdapter, HSTRING* o
 HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING address, IConnectionProfile* connectionProfile, ConnectionProfileInformation* profileInfo)
 {
 	Etw::EtwScopedEvent convertEvent("IPInformation", "Fill connection profile information");
+	HRESULT hr;
+
+	// Getting data plan if connection is metered is __extremely__ slow
+	// It involves a cross process call to RuntimeBroker.exe, which then calls into svchost.exe to query some database
+	// On Lumia 920, this takes around 700 ms
+	// In an attempt to hide the cost, let's query it on another thread while this thread queries other attributes
+	WRL::ComPtr<IDataPlanStatus> dataPlanStatus;
+	Utilities::HandleHolder dataPlanStatusAcquiredEvent = CreateEventExW(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+
+	Utilities::ThreadPoolRunner::RunAsync([connectionProfile, &dataPlanStatus, &dataPlanStatusAcquiredEvent]
+	{
+		Etw::EtwScopedEvent getDataPlanStatusEvent("IPInformation", "Get data plan status");
+		connectionProfile->GetDataPlanStatus(&dataPlanStatus);
+
+		auto setEventResult = SetEvent(dataPlanStatusAcquiredEvent);
+		Assert(setEventResult != FALSE);
+	});
+
 	profileInfo->address = address;
 
-	auto hr = connectionProfile->GetNetworkConnectivityLevel(&profileInfo->connectivityLevel);
+	hr = connectionProfile->GetNetworkConnectivityLevel(&profileInfo->connectivityLevel);
 	ReturnIfFailed(hr);
 
 	// ConnectionCost
@@ -62,37 +81,6 @@ HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING addr
 
 		hr = connectionCost->get_Roaming(&profileInfo->isRoaming);
 		ReturnIfFailed(hr);
-	}
-
-	// DataPlan
-	{
-		WRL::ComPtr<IDataPlanStatus> dataPlanStatus;
-		hr = connectionProfile->GetDataPlanStatus(&dataPlanStatus);
-		ReturnIfFailed(hr);
-
-		WRL::ComPtr<IReference<uint32_t>> megabytesLimit;
-		hr = dataPlanStatus->get_DataLimitInMegabytes(&megabytesLimit);
-		ReturnIfFailed(hr);
-
-		if (megabytesLimit != nullptr)
-		{
-			profileInfo->hasLimit = true;
-			hr = megabytesLimit->get_Value(&profileInfo->megabytesLimit);
-		}
-		else
-		{
-			profileInfo->hasLimit = false;
-		}
-
-		WRL::ComPtr<IDataPlanUsage> dataPlanUsage;
-		hr = dataPlanStatus->get_DataPlanUsage(&dataPlanUsage);
-		ReturnIfFailed(hr);
-
-		if (dataPlanUsage != nullptr)
-		{
-			hr = dataPlanUsage->get_MegabytesUsed(&profileInfo->megabytesUsed);
-			ReturnIfFailed(hr);
-		}
 	}
 
 	// NetworkSecurity
@@ -183,6 +171,39 @@ HRESULT Networking::IPInformation::FillConnectionProfileInformation(HSTRING addr
 
 		hr = GetNetworkAdapterName(networkAdapter.Get(), &profileInfo->name);
 		ReturnIfFailed(hr);
+	}
+
+	// DataPlan
+	{
+		{
+			Etw::EtwScopedEvent waitForDataPlanStatusAcquisitionEvent("IPInformation", "Waiting for data plan status acquisition");
+			auto waitResult = WaitForSingleObjectEx(dataPlanStatusAcquiredEvent, INFINITE, FALSE);
+			Assert(waitResult == WAIT_OBJECT_0);
+		}
+
+		WRL::ComPtr<IReference<uint32_t>> megabytesLimit;
+		hr = dataPlanStatus->get_DataLimitInMegabytes(&megabytesLimit);
+		ReturnIfFailed(hr);
+
+		if (megabytesLimit != nullptr)
+		{
+			profileInfo->hasLimit = true;
+			hr = megabytesLimit->get_Value(&profileInfo->megabytesLimit);
+		}
+		else
+		{
+			profileInfo->hasLimit = false;
+		}
+
+		WRL::ComPtr<IDataPlanUsage> dataPlanUsage;
+		hr = dataPlanStatus->get_DataPlanUsage(&dataPlanUsage);
+		ReturnIfFailed(hr);
+
+		if (dataPlanUsage != nullptr)
+		{
+			hr = dataPlanUsage->get_MegabytesUsed(&profileInfo->megabytesUsed);
+			ReturnIfFailed(hr);
+		}
 	}
 
 	return S_OK;

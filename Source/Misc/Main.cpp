@@ -6,6 +6,7 @@
 #include "Utilities\EventHandler.h"
 #include "Utilities\HString.h"
 #include "Utilities\RoInitializer.h"
+#include "Utilities\ThreadPoolRunner.h"
 
 using namespace	ABI::Windows::UI::Xaml;
 using namespace UI;
@@ -17,6 +18,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	Etw::EtwSingleEvent("Lifetime", "wWinMain startup");
 
 	RoInitializer roInit;
+	Utilities::ThreadPoolRunner::ScopedSingleton threadPoolRunner;
 	PlugNPlay::ScopedPlugNPlayObjectRegistry pnpRegistry;
 	
 	WRL::ComPtr<IApplicationStatics> applicationStatics;
