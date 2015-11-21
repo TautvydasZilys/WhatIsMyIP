@@ -103,10 +103,10 @@ uint32_t IPInformationWatcher::SubscribeToChanges(std::function<void(const std::
 		Utilities::CriticalSection::Lock lock(instance->m_CallbacksCriticalSection);
 		token = instance->m_NextRegistrationToken++;
 		instance->m_Callbacks.emplace_back(token, std::move(callback));
-	}
 
-	if (instance->m_HasIPInformation)
-		callback(instance->m_ConnectionProperties);
+		if (instance->m_HasIPInformation)
+			instance->m_Callbacks.back().second(instance->m_ConnectionProperties);
+	}
 	
 	return token;
 }
