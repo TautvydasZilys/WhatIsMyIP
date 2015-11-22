@@ -74,13 +74,14 @@ HRESULT IPInformationWatcher::UpdateIPInformation()
 	Etw::EtwRefCountedScopedEvent refreshIPInfoEvent("IPInformationWatcher", "Refresh ip information");
 
 	WRL::ComPtr<IPInformationWatcher> _this = this;
-	return GenerateIPInformationAsync([_this, refreshIPInfoEvent](const std::vector<Networking::ConnectionProperties>& connectionProperties)
+	return GenerateIPInformationAsync([_this, refreshIPInfoEvent](std::vector<Networking::ConnectionProperties>&& connectionProperties)
 	{
 		Utilities::CriticalSection::Lock lock(_this->m_CallbacksCriticalSection);
 		_this->m_HasIPInformation = true;
+		_this->m_ConnectionProperties = std::move(connectionProperties);
 
 		for (const auto& callback : _this->m_Callbacks)
-			callback.second(connectionProperties);
+			callback.second(_this->m_ConnectionProperties);
 
 		return S_OK;
 	});

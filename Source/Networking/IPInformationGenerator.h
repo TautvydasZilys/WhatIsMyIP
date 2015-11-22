@@ -85,7 +85,7 @@ private:
 
 		std::sort(connectionProperties.begin(), connectionProperties.end(), [](const ConnectionProperties& left, const ConnectionProperties& right) { return left.name < right.name; });
 
-		auto hr = m_Callback(connectionProperties);
+		auto hr = m_Callback(std::move(connectionProperties));
 		Assert(SUCCEEDED(hr));
 	}
 
