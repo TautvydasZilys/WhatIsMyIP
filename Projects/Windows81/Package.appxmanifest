@@ -15,7 +15,7 @@
   </Resources>
   <Applications>
     <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="WinMain">
-      <m2:VisualElements DisplayName="What is my IP?" Square150x150Logo="Assets\Logo.png" Square30x30Logo="Assets\SmallLogo.png" Description="What is my IP?" ForegroundText="light" BackgroundColor="transparent">
+      <m2:VisualElements DisplayName="What is my IP?" Square150x150Logo="Assets\Logo.png" Square30x30Logo="Assets\SmallLogo.png" Description="What is my IP?" ForegroundText="light" BackgroundColor="#000000">
         <m2:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="black" />
       </m2:VisualElements>
     </Application>
