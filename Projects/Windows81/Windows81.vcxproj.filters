@@ -24,4 +24,15 @@
   <ItemGroup>
     <None Include="Windows81_TemporaryKey.pfx" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Logo.scale-180.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\SmallLogo.scale-180.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\StoreLogo.scale-180.png">
+      <Filter>Assets</Filter>
+    </Image>
+  </ItemGroup>
 </Project>
