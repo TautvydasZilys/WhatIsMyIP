@@ -260,7 +260,7 @@ HRESULT Networking::IPInformation::GetAllNetworkAdapters(std::vector<std::pair<W
 
 	WRL::ComPtr<INetworkInformationStatics> networkInformation;
 	hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation"), &networkInformation);
-	ReturnIfFailed(hr);
+	FastFailIfFailed(hr);
 
 	WRL::ComPtr<IVectorView<HostName*>> hostNames;
 	hr = networkInformation->GetHostNames(&hostNames);

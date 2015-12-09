@@ -40,7 +40,7 @@ IPInformationWatcher::IPInformationWatcher() :
 HRESULT IPInformationWatcher::Initialize()
 {
 	auto hr = Windows::Foundation::GetActivationFactory(Utilities::HStringReference(L"Windows.Networking.Connectivity.NetworkInformation"), &m_NetworkInformation);
-	ReturnIfFailed(hr);
+	FastFailIfFailed(hr);
 
 	hr = m_NetworkInformation->add_NetworkStatusChanged(this, &m_NetworkStatusChangedToken);
 	ReturnIfFailed(hr);
