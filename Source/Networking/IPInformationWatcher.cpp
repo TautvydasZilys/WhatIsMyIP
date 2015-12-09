@@ -43,7 +43,7 @@ HRESULT IPInformationWatcher::Initialize()
 	FastFailIfFailed(hr);
 
 	hr = m_NetworkInformation->add_NetworkStatusChanged(this, &m_NetworkStatusChangedToken);
-	ReturnIfFailed(hr);
+	FastFailIfFailed(hr);
 
 	hr = UpdateIPInformation();
 	ReturnIfFailed(hr);
