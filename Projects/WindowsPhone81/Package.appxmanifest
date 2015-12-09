@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/2010/manifest" xmlns:m2="http://schemas.microsoft.com/appx/2013/manifest" xmlns:m3="http://schemas.microsoft.com/appx/2014/manifest" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest">
-  <Identity Name="49414Sunius.WhatismyIP" Publisher="CN=D70B4514-159F-4F67-A956-2F49FED5A337" Version="1.0.0.1" />
-  <mp:PhoneIdentity PhoneProductId="9f1305b6-d765-41a1-8913-131a11e0f0d7" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+  <Identity Name="04282e99-bfde-4861-8490-a7c530c54ba5" Publisher="CN=Tautvydas Žilys" Version="1.0.0.0" />
+  <mp:PhoneIdentity PhoneProductId="14371a28-94d7-4c3f-bb7b-21a0a316cc50" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>What is my IP?</DisplayName>
     <PublisherDisplayName>Tautvydas Žilys</PublisherDisplayName>
@@ -23,7 +23,4 @@
       </m3:VisualElements>
     </Application>
   </Applications>
-  <Capabilities>
-    <Capability Name="internetClientServer" />
-  </Capabilities>
 </Package>
